@@ -750,6 +750,7 @@ const ICON = {
   profile:'<svg viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2.2"/><circle cx="9" cy="17" r="2.2"/></svg>',
   check:'<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
   trash:'<svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>',
+  share:'<svg viewBox="0 0 24 24"><circle cx="18" cy="5.5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="18.5" r="2.5"/><path d="M8.2 10.8l7.6-4.1M8.2 13.2l7.6 4.1"/></svg>',
   folder:'<svg viewBox="0 0 24 24"><path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/></svg>',
   reload:'<svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.35-5.65"/><path d="M20 4v5h-5"/></svg>',
   lock:'<svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>',
@@ -810,7 +811,7 @@ async function loadPlayer(user){
     const saved = await api('progress', {state:nextState, version}, 'PUT');
     version = saved.version;
   }
-  ACCT = {id:user.id, email:user.email}; S = nextState; DEMO = false; OB = null;
+  ACCT = {id:user.id, email:user.email}; S = nextState; DEMO = false; OB = null; COMM.list = null; COMM.err = '';
   dirty = false; UI.tab = 'home';
 }
 
@@ -1104,6 +1105,7 @@ async function reloadState(){
     if (dirty && !(await flushSave())) return; // saveNotice already explains the problem
     const result = await api('progress');
     if (result.state){ S = migrate(result.state); version = result.version; }
+    COMM.list = null; COMM.err = '';
     FLASH = []; render(); toast('Aktualisiert.');
   } catch (error){ toast(error.message || 'Neu laden fehlgeschlagen.'); }
   finally { RELOADING = false; document.querySelectorAll('.tb-reload').forEach(b => b.classList.remove('spin')); ptrReset(); }
@@ -1303,11 +1305,17 @@ function viewQuests(){
       <div class="bar" style="height:4px"><i style="width:${Math.round(doneN/all.length*100)}%"></i></div>${closed ? '' : inner}</div>`;
   };
   const withOpen = gs => gs.map(g=>({g, list:qs.filter(q=>q.goalId===g.id)})).filter(x=>x.list.length);
-  const tplGoals = withOpen(S.goals.filter(g=>g.tpl)), ownGoals = withOpen(S.goals.filter(g=>!g.tpl));
+  // The user's goal groups come first (also when empty), then ungrouped goals split into template and own goals.
+  const nGoals = n => `${n} ${n===1?'Ziel':'Ziele'}`, known = new Set(S.groups.map(gr=>gr.id));
+  S.groups.forEach(gr => { const blocks = withOpen(S.goals.filter(g=>g.group===gr.id));
+    h += foldSec('grp-'+gr.id, gr.name, nGoals(blocks.length), blocks.length ? blocks.map(x=>goalBlock(x.g, x.list)).join('')
+      : `<div class="empty" style="padding:14px">Keine offenen Ziele in dieser Gruppe.<button class="btn small ghost" data-act="new-goal" data-group="${gr.id}">${ICON.plus}Ziel anlegen</button></div>`); });
+  const loose = S.goals.filter(g=>!g.group || !known.has(g.group));
+  const tplGoals = withOpen(loose.filter(g=>g.tpl)), ownGoals = withOpen(loose.filter(g=>!g.tpl));
   const free = qs.filter(q=>!q.goalId || !S.goals.some(g=>g.id===q.goalId));
-  h += foldSec('sec-tpl', 'Vorlagen', `${tplGoals.length} ${tplGoals.length===1?'Ziel':'Ziele'}`,
-    (tplGoals.length ? tplGoals.map(x=>goalBlock(x.g, x.list)).join('') : `<div class="empty">Noch kein Ziel aus den Vorlagen gestartet.<button class="btn small primary" data-act="fab">Vorlage wählen</button></div>`));
-  if (ownGoals.length) h += foldSec('sec-own', 'Eigene Ziele', `${ownGoals.length} ${ownGoals.length===1?'Ziel':'Ziele'}`, ownGoals.map(x=>goalBlock(x.g, x.list)).join(''));
+  if (tplGoals.length || !S.goals.length) h += foldSec('sec-tpl', S.groups.length ? 'Vorlagen ohne Gruppe' : 'Vorlagen', nGoals(tplGoals.length),
+    (tplGoals.length ? tplGoals.map(x=>goalBlock(x.g, x.list)).join('') : `<div class="empty">Noch kein Ziel aus den Vorlagen gestartet.<button class="btn small primary" data-act="gtab" data-v="tpl">Ziele entdecken</button></div>`));
+  if (ownGoals.length) h += foldSec('sec-own', S.groups.length ? 'Eigene Ziele ohne Gruppe' : 'Eigene Ziele', nGoals(ownGoals.length), ownGoals.map(x=>goalBlock(x.g, x.list)).join(''));
   h += foldSec('sec-free', 'Freie Quests', `${free.length} offen`, (free.length ? sortedRows(free) : `<div class="empty">Noch keine freien Quests. Sie gehören zu keinem Ziel, zum Beispiel eine einmalige Aufgabe, die du erledigen willst.<button class="btn small primary" data-act="new-quest">Freie Quest erstellen</button></div>`));
   const doneOnce = S.quests.filter(q=>kindOf(q)==='once' && q.done).length;
   h += `<div class="spread qfoot"><div class="sortbar"><span>Sortieren</span><div class="seg" role="group" aria-label="Sortierung"><button data-act="qsort" data-v="attr" aria-pressed="${UI.qSort==='attr'}">Skill</button><button data-act="qsort" data-v="xp" aria-pressed="${UI.qSort==='xp'}">XP</button><button data-act="qsort" data-v="new" aria-pressed="${UI.qSort==='new'}">Neu</button></div></div>
@@ -1451,8 +1459,70 @@ function goalsBody(){
   // Templates are shown by topic; any template missing from GT_CAT lands under "Weitere Ziele".
   const placed = new Set(GT_CAT.flatMap(c=>c.ids));
   const cats = [...GT_CAT, {name:'Weitere Ziele', ids:GT.filter(t=>!placed.has(t.id)).map(t=>t.id)}];
-  return head + cats.map(c => { const list = c.ids.map(id=>GT.find(t=>t.id===id)).filter(Boolean); if (!list.length) return '';
+  return head + communitySection() + cats.map(c => { const list = c.ids.map(id=>GT.find(t=>t.id===id)).filter(Boolean); if (!list.length) return '';
     return `<div class="ggroup-h"><h2>${esc(c.name)}</h2><span class="muted tnum" style="font-size:.8rem">${list.length} ${list.length===1?'Ziel':'Ziele'}</span></div>` + list.map(tplCard).join(''); }).join('');
+}
+/* ----- Community goals: goals players shared publicly ----- */
+const COMM = {list:null, loading:false, err:''};
+async function loadCommunity(force){
+  if (DEMO || !ACCT || COMM.loading || (COMM.list && !force)) return;
+  COMM.loading = true; COMM.err = '';
+  try { COMM.list = (await api('shared-goals')).goals; }
+  catch (error){ COMM.err = error.message; }
+  finally { COMM.loading = false; if (UI.tab === 'quests' && UI.qView === 'goals' && UI.gTab === 'tpl') render(); }
+}
+const SHARE_XP = DIFF.map(d=>d.xp);
+// Turns one of the player's own goals into the public format the server accepts.
+function sharePayload(g){
+  const qs = S.quests.filter(q=>q.goalId===g.id).sort((a,b)=>(a.created||0)-(b.created||0));
+  return {name:g.name, desc:g.desc || '', quests: qs.slice(0,25).map(q => ({title:q.title, attr:q.attrs.find(a=>CORE.some(c=>c.id===a)) || 'disziplin',
+    xp: SHARE_XP.includes(q.xp) ? q.xp : SHARE_XP.reduce((best,x)=>Math.abs(x-q.xp)<Math.abs(best-q.xp)?x:best), target:Math.min(365, Math.max(1, q.target||1))}))};
+}
+const canShare = g => !g.tpl && !g.fromShared;
+async function shareGoal(g){
+  try {
+    const {id} = await api('shared-goals', sharePayload(g));
+    g.shared = id; persist(); if (COMM.list) COMM.list = null; render();
+    toast(`„${g.name}“ ist jetzt für alle sichtbar.`, null); return true;
+  } catch (error){ toast(error.message); return false; }
+}
+async function unshareGoal(sharedId){
+  try { await api('shared-goals', {id:sharedId}, 'DELETE'); }
+  catch (error){ if (!/gibt es nicht mehr/.test(error.message)){ toast(error.message); return false; } }
+  S.goals.forEach(g => { if (g.shared === sharedId) delete g.shared; }); persist();
+  if (COMM.list) COMM.list = COMM.list.filter(x=>x.id!==sharedId); render(); toast('Ziel wird nicht mehr geteilt.'); return true;
+}
+function adoptShared(id){
+  const t = COMM.list?.find(x=>x.id===id); if (!t || S.goals.some(g=>g.fromShared===id && !g.done)) return;
+  const s = snap(); const g = {id:uid(), name:t.name, desc:t.desc || '', tpl:null, unlock:null, done:false, group:null, fromShared:t.id, created:Date.now()};
+  S.goals.push(g); t.quests.forEach(q => S.quests.push(makeQuest({title:q.title, xp:q.xp, attrs:[q.attr], target:q.target, goalId:g.id})));
+  persist(); UI.gTab = 'mine'; render(); toast(`„${t.name}“ gestartet. Ordne es über das Ordner-Symbol einer Gruppe zu.`, s);
+}
+function communitySection(){
+  const h = `<div class="ggroup-h"><h2>Von der Community</h2>${COMM.list ? `<span class="muted tnum" style="font-size:.8rem">${COMM.list.length} ${COMM.list.length===1?'Ziel':'Ziele'}</span>` : ''}
+    ${DEMO ? '' : `<button class="icon-btn soft" style="margin-left:auto" data-act="comm-reload" aria-label="Community-Ziele neu laden">${ICON.reload}</button>`}</div>`;
+  if (DEMO) return h + `<div class="empty" style="padding:14px">Geteilte Ziele anderer Nutzer siehst du mit einem eigenen Konto.</div>`;
+  if (!COMM.list && !COMM.err) loadCommunity();
+  if (COMM.err) return h + `<div class="empty" style="padding:14px">${esc(COMM.err)}<button class="btn small ghost" data-act="comm-reload">Erneut versuchen</button></div>`;
+  if (!COMM.list) return h + `<div class="empty" style="padding:14px">Geteilte Ziele werden geladen …</div>`;
+  if (!COMM.list.length) return h + `<div class="empty" style="padding:14px">Noch hat niemand ein Ziel geteilt. Teile dein eigenes Ziel über das Teilen-Symbol unter „Meine Ziele“.</div>`;
+  return h + COMM.list.map(t => {
+    const has = S.goals.some(g=>(g.fromShared===t.id || g.shared===t.id) && !g.done), open = UI.expanded.has('sh-'+t.id);
+    const attrs = [...new Set(t.quests.map(q=>q.attr))], xp = t.quests.reduce((s,q)=>s+q.xp*q.target,0);
+    return `<article class="panel goal"><div class="spread" style="align-items:flex-start"><h3 style="min-width:0">${esc(t.name)}</h3>
+        ${t.mine ? `<span class="chip" style="--c:var(--violet-2)">Von dir</span>` : `<button class="btn small ${has?'ghost':'primary'}" data-act="adopt-shared" data-id="${t.id}" ${has?'disabled':''}>${has?'Aktiv':'Starten'}</button>`}</div>
+      <div class="row" style="gap:6px">${attrs.map(a=>`<span class="chip" style="--c:var(--c-${a})">${aIcon(a)}${meta(a).name}</span>`).join('')}<span class="muted tnum" style="font-size:.75rem">${t.quests.length} Quests · ${fmt(xp)} XP</span></div>
+      ${open ? `${t.desc ? `<p class="muted" style="font-size:.86rem">${esc(t.desc)}</p>` : ''}<ul class="muted" style="font-size:.84rem;margin:0;padding-left:18px">${t.quests.map(q=>`<li>${esc(q.title)}${q.target>1?` · ${q.target}×`:''}</li>`).join('')}</ul>
+        ${t.mine ? `<button class="btn small ghost" style="align-self:flex-start" data-act="unshare" data-id="${t.id}">Nicht mehr teilen</button>` : ''}` : ''}
+      <button class="more" data-act="expand" data-id="sh-${t.id}">${open?'Weniger':'Details'}</button></article>`; }).join('');
+}
+function shareSheet(goalId){
+  const g = S.goals.find(x=>x.id===goalId); if (!g) return;
+  openSheet(`<div class="stack"><div class="spread"><h2>${g.shared ? 'Geteiltes Ziel' : 'Ziel öffentlich teilen'}</h2><button type="button" class="btn small ghost" data-act="close">Schließen</button></div>
+    ${g.shared ? `<p class="muted" style="font-size:.9rem">„${esc(g.name)}“ ist für alle angemeldeten Nutzer unter „Ziele entdecken“ sichtbar.</p>
+      <button class="btn ghost block" data-act="unshare" data-id="${g.shared}">Nicht mehr teilen</button>`
+    : `<p class="muted" style="font-size:.9rem">„${esc(g.name)}“ wird mit Beschreibung und Quests für <b style="color:var(--fg)">alle angemeldeten Nutzer</b> unter „Ziele entdecken“ sichtbar. Dein Name, dein Profilbild und deine E-Mail werden nicht angezeigt. Du kannst das Teilen jederzeit beenden.</p>
+      <button class="btn primary block" data-act="share-yes" data-id="${g.id}">${ICON.share}Öffentlich teilen</button>`}</div>`);
 }
 const GT_CAT = [
   {name:'Gesundheit & Fitness', ids:['lauf10k']},
@@ -1467,7 +1537,7 @@ function goalCard(g){ const {qs, pct} = goalProgress(g);
       return `<article class="panel goal ${g.done?'done':''}"><div class="spread" style="align-items:flex-start"><h3 style="min-width:0">${esc(g.name)}</h3>${g.done?'<span class="chip" style="--c:var(--emerald)">Erreicht</span>':`<span class="num" style="font-size:1.35rem">${pct}<small style="font-size:.8rem;color:var(--muted)">%</small></span>`}</div>
         <div class="bar"><i style="width:${pct}%;${g.done?'background:var(--emerald)':''}"></i></div>
         <div class="spread"><span class="muted tnum" style="font-size:.78rem">${qs.filter(q=>q.done).length} von ${qs.length} Quests${g.unlock?` · <span class="unlock" style="font-size:.78rem">${g.done?'Freigeschaltet':'Schaltet frei'}: ${esc(g.unlock.name)}</span>`:''}</span>
-        <span class="row" style="gap:2px;flex-wrap:nowrap"><button class="btn small ghost" data-act="goal-quests" data-id="${g.id}">Quests</button>${g.seq?'':`<button class="icon-btn" style="color:var(--violet-2)" data-act="new-quest" data-goal="${g.id}" aria-label="Quest zu diesem Ziel hinzufügen">${ICON.plus}</button>`}<button class="icon-btn" style="color:var(--muted)" data-act="goal-group" data-id="${g.id}" aria-label="Gruppe für „${esc(g.name)}“ wählen" title="Gruppe">${ICON.folder}</button><button class="icon-btn" data-act="del-goal" data-id="${g.id}" aria-label="Ziel löschen">${ICON.trash}</button></span></div></article>`;
+        <span class="row" style="gap:2px;flex-wrap:nowrap"><button class="btn small ghost" data-act="goal-quests" data-id="${g.id}">Quests</button>${g.seq?'':`<button class="icon-btn" style="color:var(--violet-2)" data-act="new-quest" data-goal="${g.id}" aria-label="Quest zu diesem Ziel hinzufügen">${ICON.plus}</button>`}${canShare(g) && !DEMO ? `<button class="icon-btn soft" style="color:${g.shared?'var(--violet-2)':'var(--muted)'}" data-act="share-goal" data-id="${g.id}" aria-label="${g.shared?'Geteilt – Teilen verwalten':'Ziel öffentlich teilen'}" title="${g.shared?'Geteilt':'Teilen'}">${ICON.share}</button>` : ''}<button class="icon-btn" style="color:var(--muted)" data-act="goal-group" data-id="${g.id}" aria-label="Gruppe für „${esc(g.name)}“ wählen" title="Gruppe">${ICON.folder}</button><button class="icon-btn" data-act="del-goal" data-id="${g.id}" aria-label="Ziel löschen">${ICON.trash}</button></span></div></article>`;
 }
 /* Sheet: choose or create a goal group. With a goal id it assigns the goal; without one it only creates a group. */
 let GRP_GOAL = null;
@@ -1569,6 +1639,7 @@ function goalSheet(){
       <select class="inp" id="gf-a-${i}" data-gf="${i}.attr" aria-label="Skill">${attrOpts(q.attr)}</select>
       <input class="inp tnum" id="gf-n-${i}" data-gf="${i}.target" type="number" min="1" max="365" value="${q.target}" aria-label="Wiederholungen"></div></div>`).join('')}
     <button type="button" class="btn ghost small" data-act="gf-add">${ICON.plus}Weitere Quest</button>
+    ${DEMO ? '' : `<label class="pick"><input type="checkbox" id="gf-share" ${GF.share?'checked':''}><span class="t"><span style="font-weight:600">Mit allen Nutzern teilen</span><br><span class="muted" style="font-size:.8rem">Das Ziel wird öffentlich unter „Ziele entdecken“ sichtbar, ohne deinen Namen.</span></span></label>`}
     <p class="err" id="gf-err" hidden></p>
     <button class="btn primary block">Ziel anlegen</button></form>`);
 }
@@ -1625,6 +1696,11 @@ const ACT = {
   'log-clear'(){ if (!S.log.length) return; const s = snap(); S.log = []; persist(); render(); toast('Liste „Letzte XP“ geleert.', s); },
   reload(){ reloadState(); },
   'new-group'(){ groupSheet(null); },
+  'share-goal'(b){ shareSheet(b.dataset.id); },
+  async 'share-yes'(b){ const g = S.goals.find(x=>x.id===b.dataset.id); if (!g || b.disabled) return; b.disabled = true; if (await shareGoal(g)) closeSheet(); else b.disabled = false; },
+  async unshare(b){ if (b.disabled) return; b.disabled = true; if (await unshareGoal(b.dataset.id)) closeSheet(); else b.disabled = false; },
+  'adopt-shared'(b){ adoptShared(b.dataset.id); },
+  'comm-reload'(){ COMM.list = null; COMM.err = ''; render(); },
   'goal-group'(b){ groupSheet(b.dataset.id); },
   'set-group'(b){ const g = S.goals.find(x=>x.id===GRP_GOAL); if (!g) return closeSheet(); const s = snap(); g.group = b.dataset.g || null; closeSheet(); persist(); render(); toast(g.group ? `„${g.name}“ liegt jetzt in „${groupName(g.group)}“.` : `„${g.name}“ ist jetzt ohne Gruppe.`, s); },
   'del-group'(b){ const gr = S.groups.find(x=>x.id===b.dataset.id); if (!gr) return; const s = snap(); S.groups = S.groups.filter(x=>x!==gr); S.goals.forEach(g => { if (g.group===gr.id) g.group = null; }); persist(); render(); toast(`Gruppe „${gr.name}“ gelöscht. Ihre Ziele sind jetzt ohne Gruppe.`, s); },
@@ -1813,6 +1889,7 @@ document.addEventListener('input', e => {
 document.addEventListener('change', e => {
   const t = e.target;
   if (t.matches('input[data-avatar]')) return readAvatar(t.files && t.files[0]);
+  if (t.id === 'gf-share' && GF) GF.share = t.checked;
   if (t.dataset.pick !== undefined && OB){ const k = +t.dataset.pick; t.checked ? OB.picks.add(k) : OB.picks.delete(k); const fb = document.querySelector('[data-act="ob-finish"]'); if (fb) fb.textContent = obFinishLabel();
     const nb = document.querySelector('[data-act="ob-none"]'); if (nb) nb.textContent = obNoneLabel(); }
   if (t.dataset.gf && GF){ const [a, b] = t.dataset.gf.split('.'); if (b !== undefined) GF.quests[+a][b] = (b==='xp'||b==='target') ? Math.max(1, parseInt(t.value)||1) : t.value; }
@@ -1844,8 +1921,10 @@ document.addEventListener('submit', e => {
     if (!qs.length){ err.textContent = 'Ein Ziel braucht mindestens eine Quest mit Titel.'; err.hidden = false; return; }
     const s = snap(); const group = GF.newGroup.trim() ? ensureGroup(GF.newGroup) : (S.groups.some(gr=>gr.id===GF.group) ? GF.group : null);
     const g = {id:uid(), name:GF.name.trim(), desc:GF.desc.trim(), tpl:null, unlock:null, done:false, group, created:Date.now()};
+    const share = !!$('#gf-share')?.checked;
     S.goals.push(g); qs.forEach(q => S.quests.push(makeQuest({title:q.title.trim(), xp:q.xp, attrs:[q.attr], target:q.target, goalId:g.id})));
     closeSheet(); persist(); UI.gTab = 'mine'; UI.tab = 'quests'; UI.qView = 'goals'; render(); toast(`Ziel „${g.name}“ mit ${qs.length} Quests angelegt.`, s);
+    if (share) shareGoal(g);
   }
 });
 
