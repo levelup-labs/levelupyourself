@@ -1442,13 +1442,26 @@ function goalsBody(){
     const loose = sorted.filter(g=>!g.group || !known.has(g.group));
     return head + groupBar + sections + (loose.length ? (S.groups.length ? groupHead('Ohne Gruppe', loose.length) : '') + loose.map(goalCard).join('') : '');
   }
-  return head + GT.map(t => {
+  const tplCard = t => {
     const has = S.goals.some(g=>g.tpl===t.id && !g.done), open = UI.expanded.has('tpl-'+t.id);
     return `<article class="panel goal"><div class="spread" style="align-items:flex-start"><h3 style="min-width:0">${esc(t.name)}</h3><button class="btn small ${has?'ghost':'primary'}" data-act="add-goal-tpl" data-id="${t.id}" ${has?'disabled':''}>${has?'Aktiv':'Starten'}</button></div>
       <div class="row" style="gap:6px">${t.attrs.map(a=>`<span class="chip" style="--c:var(--c-${a})">${aIcon(a)}${meta(a).name}</span>`).join('')}<span class="muted tnum" style="font-size:.75rem">${t.steps.length} Schritte · ${fmt(tplXp(t))} XP</span></div>
       ${open ? `<p class="muted" style="font-size:.86rem">${esc(t.desc)}</p>${t.unlock?`<span class="unlock">${ICON.lock} Schaltet frei: ${esc(t.unlock.name)}</span>`:''}` : ''}
-      <button class="more" data-act="expand" data-id="tpl-${t.id}">${open?'Weniger':'Details'}</button></article>`; }).join('');
+      <button class="more" data-act="expand" data-id="tpl-${t.id}">${open?'Weniger':'Details'}</button></article>`; };
+  // Templates are shown by topic; any template missing from GT_CAT lands under "Weitere Ziele".
+  const placed = new Set(GT_CAT.flatMap(c=>c.ids));
+  const cats = [...GT_CAT, {name:'Weitere Ziele', ids:GT.filter(t=>!placed.has(t.id)).map(t=>t.id)}];
+  return head + cats.map(c => { const list = c.ids.map(id=>GT.find(t=>t.id===id)).filter(Boolean); if (!list.length) return '';
+    return `<div class="ggroup-h"><h2>${esc(c.name)}</h2><span class="muted tnum" style="font-size:.8rem">${list.length} ${list.length===1?'Ziel':'Ziele'}</span></div>` + list.map(tplCard).join(''); }).join('');
 }
+const GT_CAT = [
+  {name:'Gesundheit & Fitness', ids:['lauf10k']},
+  {name:'Lernen & Wissen', ids:['sprache','buch500']},
+  {name:'Achtsamkeit & Wohlbefinden', ids:['meditation','detox','dankbarkeit']},
+  {name:'Kreativität & Genuss', ids:['kochen','fotoalbum']},
+  {name:'Finanzen & Organisation', ids:['finanzen']},
+  {name:'Beziehungen', ids:['sozial']},
+];
 const groupName = id => S.groups.find(x=>x.id===id)?.name || '';
 function goalCard(g){ const {qs, pct} = goalProgress(g);
       return `<article class="panel goal ${g.done?'done':''}"><div class="spread" style="align-items:flex-start"><h3 style="min-width:0">${esc(g.name)}</h3>${g.done?'<span class="chip" style="--c:var(--emerald)">Erreicht</span>':`<span class="num" style="font-size:1.35rem">${pct}<small style="font-size:.8rem;color:var(--muted)">%</small></span>`}</div>
