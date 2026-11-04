@@ -769,25 +769,37 @@ const AICON = {
 };
 const aIcon = (id, cls='ai') => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true">${AICON[id] || AICON._}</svg>`;
 /* ================= Storage ================= */
-let DB = null, CID = null, MODE = 'local';
-const MEM = {};
-const store = {
-  async get(key){
-    if (DB){ const s = await DB.doc(`data/users/${CID}/${key}`).get(); return s.exists ? clone(s.data()) : null; }
-    const v = ls.get('luy:'+key); if (v) { try{return JSON.parse(v)}catch{} } return MEM[key] || null;
-  },
-  async set(key, obj){
-    if (DB){ await DB.doc(`data/users/${CID}/${key}`).set(obj); return; }
-    MEM[key] = obj; ls.set('luy:'+key, JSON.stringify(obj));
-  },
-};
-async function sha(str){ const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str)); return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join(''); }
-async function pwHash(pw, salt){
-  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(pw), 'PBKDF2', false, ['deriveBits']);
-  const bits = await crypto.subtle.deriveBits({name:'PBKDF2', salt:new TextEncoder().encode(salt), iterations:120000, hash:'SHA-256'}, key, 256);
-  return [...new Uint8Array(bits)].map(x=>x.toString(16).padStart(2,'0')).join('');
+async function api(endpoint, body, method = 'POST'){
+  const response = await fetch('/.netlify/functions/' + endpoint, {
+    method: body === undefined ? 'GET' : method,
+    credentials: 'same-origin', cache: 'no-store',
+    ...(body === undefined ? {} : {headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)}),
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || 'Verbindung fehlgeschlagen.');
+  return result;
 }
-const acctKey = async email => 'acct_' + (await sha(email.trim().toLowerCase())).slice(0,40);
+let version = 0, dirty = false, changeId = 0;
+async function loadPlayer(user){
+  const result = await api('progress');
+  let state = result.state;
+  // Existing browser saves belong to this verified email; credentials stay local.
+  if (!state){
+    const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(user.email.trim().toLowerCase()));
+    const hash = [...new Uint8Array(bytes)].map(x=>x.toString(16).padStart(2,'0')).join('');
+    try { const legacy = JSON.parse(ls.get('luy:acct_' + hash.slice(0,40)) || 'null');
+      if (legacy?.email?.toLowerCase() === user.email.toLowerCase() && legacy.state) state = legacy.state;
+    } catch {}
+  }
+  const nextState = migrate(state);
+  version = result.version;
+  if (state && !result.state){
+    const saved = await api('progress', {state:nextState, version}, 'PUT');
+    version = saved.version;
+  }
+  ACCT = {id:user.id, email:user.email}; S = nextState; DEMO = false; OB = null;
+  dirty = false; UI.tab = 'home';
+}
 
 /* ================= App state ================= */
 let ACCT = null, S = null, DEMO = false, FLASH = [], FRESH = null;
@@ -796,7 +808,7 @@ const LINGER = new Set();
 const listOrDone = (arr, msg) => { const vis = arr.filter(q => !doneNow(q) || LINGER.has(q.id)); return vis.length ? `<div class="qlist">${vis.map(questRow).join('')}</div>` : `<div class="alldone">${ICON.check}<span>${msg}</span></div>`; };
 const UI = {tab:'home', qView:'tasks', homeAll:false, showDone:false, qFilter:'active', qSort:'attr', gTab:'mine', confirmReset:false, expanded:new Set(), folded:new Set()};
 try { JSON.parse(localStorage.getItem('luy:folded') || '[]').forEach(id => UI.folded.add(id)); } catch {}
-const AUTH = {tab:'register', err:'', busy:false};
+const AUTH = {tab:'register', err:'', busy:false, message:'', recoveryToken:null};
 let OB = null;
 
 function freshState(){ return {name:'', onboarded:false, attrs:{}, special:[], goals:[], quests:[], log:[], stats:{quests:0, xp:0, best:0}, days:{}, dailyGoal:3, avatar:null, created:Date.now()}; }
@@ -809,15 +821,36 @@ function migrate(st){
   return s;
 }
 
-let saveTimer = null, saving = Promise.resolve();
+let saveTimer = null, saving = Promise.resolve(true);
+function saveNotice(message = ''){
+  let el = document.getElementById('save-status');
+  if (!el){ el = document.createElement('div'); el.id = 'save-status'; el.setAttribute('role','status');
+    el.style.cssText = 'position:fixed;bottom:85px;left:16px;right:16px;z-index:9999;background:#302035;color:white;padding:12px;border-radius:12px;text-align:center'; document.body.append(el); }
+  el.hidden = !message;
+  el.innerHTML = message ? esc(message) + ' <button class="btn small" data-act="retry-save">Erneut speichern</button>' : '';
+}
+function flushSave(){
+  clearTimeout(saveTimer);
+  if (DEMO || !ACCT || !dirty) return saving;
+  const state = clone(S), accountId = ACCT.id, sequence = changeId;
+  saving = saving.then(async () => {
+    if (ACCT?.id !== accountId) return false;
+    try {
+      const result = await api('progress', {state, version}, 'PUT');
+      version = result.version;
+      if (sequence === changeId) { dirty = false; saveNotice(); }
+      return true;
+    } catch (error) { saveNotice(error.message + ' Deine Änderungen sind noch nicht gespeichert.'); return false; }
+  });
+  return saving;
+}
 function persist(){
   if (DEMO || !ACCT) return;
+  dirty = true; changeId++;
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
-    const doc = {email:ACCT.email, salt:ACCT.salt, pw:ACCT.pw, state:S, updatedAt:Date.now()};
-    saving = saving.then(() => store.set(ACCT.key, doc)).catch(() => toast('Speichern hat nicht geklappt. Prüfe deine Verbindung, deine Änderung bleibt bis dahin hier offen.'));
-  }, 450);
+  saveTimer = setTimeout(flushSave, 450);
 }
+window.addEventListener('beforeunload', e => { if (dirty){ e.preventDefault(); e.returnValue = ''; } });
 
 /* ================= Game logic ================= */
 const allAttrs = () => [...CORE.map(c=>({...c, color:`var(--c-${c.id})`, ...S.attrs[c.id]})), ...S.special.map(s=>({...s, color:'var(--c-special)'}))];
@@ -937,46 +970,41 @@ function render(){
 
 /* ----- Auth ----- */
 function renderAuth(){
-  const reg = AUTH.tab === 'register';
+  const reg = AUTH.tab === 'register', reset = !!AUTH.recoveryToken;
   app().innerHTML = `<div class="wrap"><div class="auth">
     <div class="stack" style="gap:18px"><img class="logo" src="${LOGO}" alt="Level Up Yourself" width="540" height="775">
       <p class="muted" style="max-width:36ch;font-size:1.02rem">Du bist dein eigenes Projekt. Entwickle deinen Charakter, trainiere deine Skills und erreiche jeden Tag dein nächstes Level.</p></div>
     <form class="panel stack" data-form="auth" novalidate>
-      <div class="seg" role="group" aria-label="Anmelden oder registrieren">
+      ${reset ? '<h2>Neues Passwort festlegen</h2>' : ''}<div class="seg" role="group" aria-label="Anmelden oder registrieren" ${reset ? 'hidden' : ''}>
         <button type="button" data-act="auth-tab" data-v="register" aria-pressed="${reg}">Registrieren</button>
         <button type="button" data-act="auth-tab" data-v="login" aria-pressed="${!reg}">Anmelden</button>
       </div>
-      <label class="f">E-Mail<input class="inp" id="au-email" type="email" autocomplete="email" required placeholder="name@beispiel.de"></label>
-      <label class="f">Passwort<input class="inp" id="au-pw" type="password" autocomplete="${reg?'new-password':'current-password'}" required minlength="6" placeholder="mindestens 6 Zeichen"></label>
-      ${AUTH.err ? `<p class="err" role="alert">${esc(AUTH.err)}</p>` : ''}
-      <button class="btn primary block" ${AUTH.busy?'disabled':''}>${AUTH.busy ? 'Moment …' : reg ? 'Charakter erstellen' : 'Anmelden'}</button>
-      <p class="dim" style="font-size:.8rem">${MODE==='cloud' ? 'Deine Daten liegen privat in deinem claude.ai-Konto und sind auf allen Geräten verfügbar.' : 'Deine Daten werden in diesem Browser gespeichert.'}</p>
+      <label class="f" ${reset ? 'hidden' : ''}>E-Mail<input class="inp" id="au-email" type="email" autocomplete="email" required placeholder="name@beispiel.de"></label>
+      <label class="f">Passwort<input class="inp" id="au-pw" type="password" autocomplete="${reg?'new-password':'current-password'}" required minlength="8" placeholder="mindestens 8 Zeichen"></label>
+      ${AUTH.err ? `<p class="err" role="alert">${esc(AUTH.err)}</p>` : ''}${AUTH.message ? `<p role="status">${esc(AUTH.message)}</p>` : ''}
+      <button class="btn primary block" ${AUTH.busy?'disabled':''}>${AUTH.busy ? 'Moment …' : reset ? 'Passwort speichern' : reg ? 'Charakter erstellen' : 'Anmelden'}</button>
+      <p class="dim" style="font-size:.8rem">Dein Konto und Spielstand werden privat online gespeichert und sind nach der Anmeldung auf allen Geräten verfügbar.</p>
+      <button type="button" class="link" data-act="forgot-password" ${AUTH.busy || reset ? 'disabled' : ''}>Passwort vergessen?</button>
     </form>
     <div class="row" style="justify-content:center"><span class="muted">Erst mal schauen?</span><button class="link" data-act="demo">Demo-Charakter ansehen</button></div>
   </div></div>`;
   $('#nav-root')?.remove();
 }
 async function submitAuth(){
-  const email = $('#au-email').value.trim(), pw = $('#au-pw').value;
-  AUTH.err = '';
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { AUTH.err = 'Gib eine gültige E-Mail-Adresse ein, z. B. name@beispiel.de.'; return renderAuth(); }
-  if (pw.length < 6) { AUTH.err = 'Das Passwort braucht mindestens 6 Zeichen.'; return renderAuth(); }
-  AUTH.busy = true; renderAuth(); $('#au-email').value = email; $('#au-pw').value = pw;
+  if (AUTH.busy) return;
+  const email = $('#au-email').value.trim().toLowerCase(), pw = $('#au-pw').value;
+  AUTH.err = ''; AUTH.message = '';
+  if (!AUTH.recoveryToken && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { AUTH.err = 'Gib eine gültige E-Mail-Adresse ein.'; return renderAuth(); }
+  if (pw.length < 8) { AUTH.err = 'Das Passwort braucht mindestens 8 Zeichen.'; return renderAuth(); }
+  AUTH.busy = true; renderAuth();
   try {
-    const key = await acctKey(email);
-    const existing = await store.get(key);
-    if (AUTH.tab === 'register'){
-      if (existing) { AUTH.err = 'Für diese E-Mail gibt es schon ein Konto. Wechsle zu „Anmelden“.'; }
-      else { const salt = uid() + uid(); ACCT = {key, email, salt, pw: await pwHash(pw, salt)}; S = freshState(); await store.set(key, {...ACCT, state:S, updatedAt:Date.now()}); }
-    } else {
-      if (!existing) AUTH.err = 'Für diese E-Mail gibt es kein Konto. Registriere dich zuerst.';
-      else if (await pwHash(pw, existing.salt) !== existing.pw) AUTH.err = 'Das Passwort stimmt nicht. Versuch es noch einmal.';
-      else { ACCT = {key, email:existing.email, salt:existing.salt, pw:existing.pw}; S = migrate(existing.state); }
-    }
-  } catch(e) { AUTH.err = 'Die Anmeldung hat nicht geklappt. Prüfe deine Verbindung und versuch es erneut.'; }
+    const result = await api('account', {action:AUTH.recoveryToken ? 'reset' : AUTH.tab, email, password:pw, token:AUTH.recoveryToken});
+    if (result.user){ AUTH.recoveryToken = null; await loadPlayer(result.user); }
+    else { AUTH.recoveryToken = null; AUTH.message = result.message; AUTH.tab = 'login'; }
+  } catch(error) { AUTH.err = error.message; }
   AUTH.busy = false;
-  if (ACCT){ ls.set('luy:session', ACCT.key); DEMO = false; UI.tab = 'home'; render(); }
-  else { renderAuth(); const e = $('#au-email'); if (e) e.value = email; }
+  render();
+  const input = $('#au-email'); if (input) input.value = email;
 }
 
 /* ----- Onboarding ----- */
@@ -1364,7 +1392,7 @@ function goalsBody(){
 
 /* ----- Profile ----- */
 function viewProfile(){
-  const modeText = DEMO ? 'Demo · nichts wird gespeichert' : MODE==='cloud' ? 'Privat in deinem claude.ai-Konto, auf allen Geräten' : 'Nur in diesem Browser';
+  const modeText = DEMO ? 'Demo · nichts wird gespeichert' : 'Privat online, nach Anmeldung auf allen Geräten';
   const c = charLvl(S.stats.xp);
   return `<div class="stack" style="gap:8px"><span class="lbl">Einstellungen</span><h1>Profil</h1></div>
     <section class="panel stack"><div class="prow">${avatar(72, c.pct)}<div class="stack" style="gap:8px;min-width:0"><h3>Profilbild</h3>
@@ -1448,8 +1476,17 @@ function goalSheet(){
 function snap(){ return clone(S); }
 function syncQF(){ const t = $('#qf-title'); if (!t) return; QF.title = t.value; const g = $('#qf-goal'); if (g) QF.goalId = g.value; const n = $('#qf-target'); if (n) QF.target = Math.max(1, parseInt(n.value)||1); }
 const ACT = {
-  'auth-tab'(b){ AUTH.tab = b.dataset.v; AUTH.err = ''; renderAuth(); },
-  demo(){ DEMO = true; ACCT = null; S = demoState(); UI.tab = 'home'; render(); },
+  'auth-tab'(b){ if (AUTH.busy) return; AUTH.tab = b.dataset.v; AUTH.err = ''; AUTH.message = ''; renderAuth(); },
+  'retry-save'(){ flushSave(); },
+  async 'forgot-password'(){
+    const email = $('#au-email').value.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ AUTH.err = 'Trage zuerst deine E-Mail-Adresse ein.'; return renderAuth(); }
+    AUTH.busy = true; AUTH.err = ''; renderAuth();
+    try { AUTH.message = (await api('account', {action:'recover', email})).message; }
+    catch(error){ AUTH.err = error.message; }
+    AUTH.busy = false; renderAuth(); $('#au-email').value = email;
+  },
+  demo(){ if (AUTH.busy) return; DEMO = true; ACCT = null; S = demoState(); UI.tab = 'home'; render(); },
   'leave-demo'(){ DEMO = false; S = null; AUTH.tab = 'register'; renderAuth(); },
   'ob-back'(){ OB.step = Math.max(1, OB.step-1); renderOnboard(); },
   'ob-to3'(){ OB.step = 3; OB.picks = null; renderOnboard(); scrollTo(0,0); },
@@ -1489,7 +1526,13 @@ const ACT = {
   'nc-toggle'(){ const s = snap(); S.hideNC = !S.hideNC; persist(); render(); toast(S.hideNC ? 'Nächste Herausforderung ausgeblendet.' : 'Nächste Herausforderung wird wieder angezeigt.', s); },
   dgoal(b){ const s = snap(); S.dailyGoal = +b.dataset.v; persist(); render(); toast(`Tagesziel: ${S.dailyGoal} ${S.dailyGoal===1?'Quest':'Quests'} pro Tag.`, s); },
   'avatar-del'(){ const s = snap(); S.avatar = null; persist(); render(); toast('Profilbild entfernt.', s); },
-  logout(){ ls.del('luy:session'); ACCT = null; S = null; DEMO = false; AUTH.tab = 'login'; AUTH.err = ''; render(); },
+  async logout(){
+    if (!await flushSave()) return;
+    if (dirty){ toast('Bitte warte, bis alle Änderungen gespeichert sind.'); return; }
+    try { await api('account', {action:'logout'}); }
+    catch(error){ toast(error.message); return; }
+    ACCT = null; S = null; OB = null; DEMO = false; AUTH.tab = 'login'; AUTH.err = ''; AUTH.message = ''; saveNotice(); render();
+  },
   reset(){ UI.confirmReset = true; render(); },
   'reset-no'(){ UI.confirmReset = false; render(); },
   'reset-yes'(){ const name = S.name, avatarUrl = S.avatar; S = freshState(); S.name = name; S.avatar = avatarUrl; OB = null; UI.confirmReset = false; persist(); render(); },
@@ -1707,16 +1750,20 @@ function demoState(){
 
 /* ================= Boot ================= */
 (async function boot(){
+  app().innerHTML = '<div class="wrap"><p role="status">Konto und Spielstand werden geladen …</p></div>';
   try {
-    if (window.claude && typeof window.claude.use === 'function'){
-      const [db, user] = await Promise.all([window.claude.use('db'), window.claude.use('user')]);
-      const id = user ? await user.id() : null;
-      if (db && id){ DB = db; CID = id; MODE = 'cloud'; }
+    const hash = new URLSearchParams(location.hash.slice(1));
+    const confirmation = hash.get('confirmation_token');
+    AUTH.recoveryToken = hash.get('recovery_token');
+    if (confirmation || AUTH.recoveryToken) history.replaceState(null, '', location.pathname + location.search);
+    if (confirmation){
+      const result = await api('account', {action:'confirm', token:confirmation});
+      AUTH.message = result.message; AUTH.tab = 'login';
+    } else if (!AUTH.recoveryToken){
+      const result = await api('account');
+      if (result.user) await loadPlayer(result.user);
     }
-  } catch {}
-  if (MODE !== 'cloud'){ let ok = true; try { localStorage.setItem('luy:t','1'); localStorage.removeItem('luy:t'); } catch { ok = false; } MODE = ok ? 'local' : 'memory'; }
-  const sess = ls.get('luy:session');
-  if (sess){ try { const d = await store.get(sess); if (d && d.pw){ ACCT = {key:sess, email:d.email, salt:d.salt, pw:d.pw}; S = migrate(d.state); } } catch {} }
+  } catch(error){ AUTH.err = error.message; AUTH.tab = 'login'; }
   render();
 })();
 })();
