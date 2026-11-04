@@ -1037,14 +1037,17 @@ function renderOnboard(){
     const byAttr = CORE.map(c=>c.id).sort((a,b)=>OB.scores[a]-OB.scores[b]);
     body = `<div class="stack"><span class="lbl">Schritt 3 von 3 · Erste Quests</span><h1>Dein Startprogramm</h1>
       <p class="muted">Für deine schwächeren Bereiche schlagen wir leichte Einstiegs-Quests vor. Wähle, womit du starten willst.</p>
+      <div class="spread" style="gap:10px"><span class="muted" style="font-size:.85rem">Lieber mit leerer Oberfläche starten?</span><button type="button" class="btn small ghost" data-act="ob-none">${obNoneLabel()}</button></div>
       ${byAttr.map((aid,i)=>{ const items = sugg.filter(s=>s.a===aid); const c = CORE.find(x=>x.id===aid);
         return `<div class="stack" style="gap:8px"><div class="sub" style="--c:var(--c-${aid})">${aIcon(aid)}${c.name} · ${OB.scores[aid]}/10${i<2?' · Fokus':''}</div>
         ${items.map(s=>`<label class="pick"><input type="checkbox" data-pick="${s.key}" ${OB.picks.has(s.key)?'checked':''}><span class="t"><span style="font-weight:600">${esc(s.t)}</span>${s.n>1?` <span class="muted">· ${s.n}×</span>`:''}<br><span class="muted" style="font-size:.8rem">${s.b?'Einstieg':'Fortgeschritten'} · ${diffName(s.xp)}</span></span><span class="xp">+${s.xp}<small>XP</small></span></label>`).join('')}</div>`; }).join('')}
-      <div class="row"><button class="btn ghost" data-act="ob-back">Zurück</button><button class="btn primary" style="flex:1" data-act="ob-finish">Los geht's (${OB.picks.size})</button></div></div>`;
+      <div class="row"><button class="btn ghost" data-act="ob-back">Zurück</button><button class="btn primary" style="flex:1" data-act="ob-finish">${obFinishLabel()}</button></div></div>`;
   }
   app().innerHTML = `<div class="wrap"><div class="stack" style="gap:22px"><div class="topbar">${MARK}<span class="wm">LEVEL UP YOURSELF</span></div>${steps}${body}</div></div>`;
   $('#nav-root')?.remove();
 }
+const obFinishLabel = () => OB.picks.size ? `Los geht's (${OB.picks.size})` : 'Ohne Quests starten';
+const obNoneLabel = () => OB.picks.size ? 'Alle abwählen' : 'Vorschläge wählen';
 function suggestions(){
   const out = [];
   CORE.forEach(c => {
@@ -1538,6 +1541,7 @@ const ACT = {
     ACCT = null; S = null; OB = null; DEMO = false; AUTH.tab = 'login'; AUTH.err = ''; AUTH.message = ''; saveNotice(); render();
   },
   'ob-zero'(){ CORE.forEach(c => { OB.scores[c.id] = 0; }); render(); },
+  'ob-none'(){ OB.picks = OB.picks.size ? new Set() : new Set(suggestions().filter(s=>s.pre).map(s=>s.key)); renderOnboard(); },
   reset(){ UI.confirmReset = true; render(); },
   'reset-no'(){ UI.confirmReset = false; render(); },
   'reset-yes'(){ const s = snap(), keep = {name:S.name, avatar:S.avatar, dailyGoal:S.dailyGoal};
@@ -1708,7 +1712,8 @@ document.addEventListener('input', e => {
 document.addEventListener('change', e => {
   const t = e.target;
   if (t.matches('input[data-avatar]')) return readAvatar(t.files && t.files[0]);
-  if (t.dataset.pick !== undefined && OB){ const k = +t.dataset.pick; t.checked ? OB.picks.add(k) : OB.picks.delete(k); const fb = document.querySelector('[data-act="ob-finish"]'); if (fb) fb.textContent = `Los geht's (${OB.picks.size})`; }
+  if (t.dataset.pick !== undefined && OB){ const k = +t.dataset.pick; t.checked ? OB.picks.add(k) : OB.picks.delete(k); const fb = document.querySelector('[data-act="ob-finish"]'); if (fb) fb.textContent = obFinishLabel();
+    const nb = document.querySelector('[data-act="ob-none"]'); if (nb) nb.textContent = obNoneLabel(); }
   if (t.dataset.gf && GF){ const [a, b] = t.dataset.gf.split('.'); if (b !== undefined) GF.quests[+a][b] = (b==='xp'||b==='target') ? Math.max(1, parseInt(t.value)||1) : t.value; }
 });
 document.addEventListener('submit', e => {
