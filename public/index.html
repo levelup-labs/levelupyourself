@@ -712,8 +712,9 @@ const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const uid = () => Math.random().toString(36).slice(2,9) + Date.now().toString(36);
 const clone = o => JSON.parse(JSON.stringify(o));
-const need = L => 150 + 4*L;          // skill level: ~34.600 XP from 1 to 100
-const startLevel = v => 15 + 4*v;      // self-assessment 0..10 -> 15..55
+const need = L => 150 + 4*L;          // skill level: ~35.200 XP from 0 to 100
+const startLevel = v => Math.max(0, Math.min(10, v|0)) * 10; // self-assessment 0..10 -> 0..100
+const zeroAttrs = () => Object.fromEntries(CORE.map(c => [c.id, {level:0, xp:0, prestige:1}]));
 const charNeed = L => 400 + 80*L;      // character level from lifetime XP: ~Level 50 after an engaged year
 function charLvl(xp){ let L = 1, rem = Math.max(0, xp|0); while (rem >= charNeed(L)){ rem -= charNeed(L); L++; } return {L, rem, need:charNeed(L), pct:Math.round(rem/charNeed(L)*100)}; }
 const RANKS = [{min:1,n:'Rookie',c:'#8FA2CC'},{min:5,n:'Herausforderer',c:'#0AA6FA'},{min:10,n:'Aufsteiger',c:'#C04BF0'},{min:20,n:'Elite',c:'#E414A8'},{min:35,n:'Meister',c:'#FA6021'},{min:50,n:'Legende',c:'#FEC11F'}];
@@ -857,13 +858,16 @@ const allAttrs = () => [...CORE.map(c=>({...c, color:`var(--c-${c.id})`, ...S.at
 const meta = id => { const c = CORE.find(x=>x.id===id); if (c) return {...c, color:`var(--c-${id})`}; const s = S.special.find(x=>x.id===id); return s ? {...s, color:'var(--c-special)'} : {id, name:id, abbr:'???', color:'var(--dim)'}; };
 const attrObj = id => S.attrs[id] || S.special.find(x=>x.id===id);
 const ovr = () => Math.round(CORE.reduce((s,c)=>s+S.attrs[c.id].level,0)/CORE.length);
-const attrPct = a => a.level >= 100 ? 100 : Math.round(a.xp / need(a.level) * 100);
+const attrPct = a => Math.min(100, Math.round(a.xp / need(a.level) * 100));
 function topAttr(){ let best = CORE[0]; CORE.forEach(c=>{ if (S.attrs[c.id].level > S.attrs[best.id].level) best = c; }); return best; }
+// Skills run from 0 to 100. Going beyond 100 starts the next prestige tier at level 1.
 function gain(a, amt){
-  if (a.level >= 100) return null;
-  const from = a.level; a.xp += amt;
-  while (a.level < 100 && a.xp >= need(a.level)){ a.xp -= need(a.level); a.level++; }
-  if (a.level >= 100){ a.level = 100; a.xp = 0; }
+  const from = a.level, fromP = a.prestige || 1; a.xp += amt;
+  while (a.xp >= need(a.level)){
+    a.xp -= need(a.level);
+    if (a.level >= 100){ a.level = 1; a.prestige = (a.prestige || 1) + 1; } else a.level++;
+  }
+  if ((a.prestige || 1) > fromP) return {from, to:a.level, prestige:a.prestige, max:true};
   return a.level > from ? {from, to:a.level} : null;
 }
 function makeQuest(o){ return {id:uid(), title:o.title, xp:o.xp, attrs:o.attrs, goalId:o.goalId||null, target:Math.max(1, o.target|0||1), count:0, done:false, kind:o.kind||'once', created:Date.now()}; }
@@ -932,7 +936,7 @@ function nextCeleb(){
   if (it.type === 'level'){
     const m = meta(it.id), r = reel(it.from, it.to); oc = m.color;
     html = `<div class="ov-box" style="--c:${m.color}"><div class="ov-icon">${aIcon(it.id)}</div><div class="ov-eb">Skill Level up</div><div class="ov-name">${esc(m.name)}</div>${r.html}
-      <div class="from">${it.from} → ${it.to}${it.to===100?' · MAXIMUM ERREICHT':''}</div><button class="btn primary" data-act="ov-next">Weiter</button></div>`;
+      <div class="from">${it.from} → ${it.to}${it.to===100?' · Nächstes Level: Prestige':''}</div><button class="btn primary" data-act="ov-next">Weiter</button></div>`;
     after = () => { spinReel(r.n); setTimeout(()=>confetti(innerWidth/2, innerHeight*.45, 1.2), REDUCED ? 0 : 1200); };
   }
   if (it.type === 'char'){
@@ -952,7 +956,7 @@ function nextCeleb(){
   if (it.type === 'prestige'){
     const m = meta(it.id); oc = 'var(--gold)';
     html = `<div class="ov-box" style="--c:var(--gold)"><div class="ov-icon" style="--c:${m.color}">${aIcon(it.id)}</div><div class="ov-eb">Prestige-Aufstieg</div><div class="ov-name">${esc(m.name)}</div>
-      <div class="slot gold" style="font-size:7rem">P${it.p}</div><p class="muted">Dein Skill startet wieder bei 1. Die Prestige-Stufe bleibt für immer auf deinem Charakter.</p>
+      <div class="slot gold" style="font-size:7rem">P${it.p}</div><p class="muted">Du hast Level 100 überschritten. Dein Skill zählt in Prestige ${it.p} wieder ab Level 1 weiter – die Prestige-Stufe bleibt für immer auf deinem Charakter.</p>
       <button class="btn gold" data-act="ov-next">Weiter</button></div>`;
     after = () => confetti(innerWidth/2, innerHeight*.45, 1.6, true);
   }
@@ -1020,7 +1024,8 @@ function renderOnboard(){
       <button class="btn primary block">Weiter</button></form>`;
   } else if (st === 2){
     body = `<div class="stack"><span class="lbl">Schritt 2 von 3 · Selbsteinschätzung</span><h1>Wo stehst du gerade, ${esc(OB.name)}?</h1>
-      <p class="muted">Sei ehrlich zu dir: 0 heißt „gar nicht“, 10 heißt „voll und ganz“. Daraus entstehen deine Start-Skills.</p>
+      <p class="muted">Sei ehrlich zu dir: 0 heißt „gar nicht“, 10 heißt „voll und ganz“. Daraus entstehen deine Start-Skills: 0 ergibt Skill 0, 10 ergibt Skill 100.</p>
+      <div class="spread" style="gap:10px"><span class="muted" style="font-size:.85rem">Lieber ganz von vorn starten?</span><button type="button" class="btn small ghost" data-act="ob-zero">Alles auf 0</button></div>
       ${CORE.map(c=>`<div class="q" style="--c:var(--c-${c.id})">
         <div class="q-top"><span class="q-ic">${aIcon(c.id)}</span><div><div style="font-weight:750">${c.name}</div><div class="muted" style="font-size:.88rem">${esc(c.q)}</div></div><b id="v-${c.id}" class="num">${OB.scores[c.id]}</b></div>
         <input type="range" id="ob-${c.id}" min="0" max="10" step="1" value="${OB.scores[c.id]}" data-score="${c.id}" aria-label="${c.name}: ${esc(c.q)}">
@@ -1294,8 +1299,7 @@ function viewCard(){
     return `<div class="skill" style="--c:${a.color}"><span class="sk-ic">${aIcon(a.id)}</span>
       <div class="sk-nm"><span>${esc(a.name)}</span>${a.prestige>1?`<span class="prest">P${a.prestige}</span>`:''}</div><b class="num sk-lv">${a.level}</b>
       <div class="bar" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100" aria-label="${esc(a.name)} Fortschritt"><i style="width:${pct}%"></i></div>
-      ${a.level>=100 ? `<div class="sk-txt"><span>Maximum erreicht</span><button class="btn small gold" data-act="prestige" data-id="${a.id}">Prestige ${a.prestige+1}</button></div>`
-        : `<div class="sk-txt"><span>${a.xp} / ${need(a.level)} XP</span><span>noch ${need(a.level)-a.xp} bis ${a.level+1}</span></div>`}</div>`; }).join('');
+      <div class="sk-txt"><span>${a.xp} / ${need(a.level)} XP</span><span>noch ${need(a.level)-a.xp} bis ${a.level>=100 ? `Prestige ${(a.prestige||1)+1}` : a.level+1}</span></div></div>`; }).join('');
   const profOpen = !UI.folded.has('sec-radar');
   return `${card}
     <section class="panel"><button class="fold-h" data-act="fold" data-id="sec-radar" aria-expanded="${profOpen}"><span class="chev" aria-hidden="true"></span><span class="fh-t"><h2>Skill-Profil</h2></span><span class="fh-m">Stärkster: ${top.name}</span></button>${profOpen ? radar() : ''}</section>
@@ -1406,9 +1410,9 @@ function viewProfile(){
     <section class="panel stack" style="gap:10px"><h3>Konto</h3>
       <p style="font-size:.9rem"><span class="muted">E-Mail:</span> ${esc(DEMO?'demo@levelup':ACCT.email)}</p><p style="font-size:.9rem"><span class="muted">Speicherort:</span> ${modeText}</p>
       <div class="row"><button class="btn small ghost" data-act="logout">${DEMO?'Demo beenden':'Abmelden'}</button>
-      ${DEMO?'':UI.confirmReset ? `<span class="err">Alle Fortschritte löschen?</span><button class="btn small" style="background:var(--danger);color:#fff" data-act="reset-yes">Ja, zurücksetzen</button><button class="btn small ghost" data-act="reset-no">Abbrechen</button>` : `<button class="btn small ghost" data-act="reset">Fortschritt zurücksetzen</button>`}</div></section>
+      ${DEMO?'':UI.confirmReset ? `<span class="err">Alle Skills, XP, Quests und Ziele auf 0 setzen?</span><button class="btn small" style="background:var(--danger);color:#fff" data-act="reset-yes">Ja, zurücksetzen</button><button class="btn small ghost" data-act="reset-no">Abbrechen</button>` : `<button class="btn small ghost" data-act="reset">Alles auf 0 zurücksetzen</button>`}</div></section>
     <section class="panel stack" style="gap:8px"><h3>So funktioniert das Leveln</h3>
-      <p class="muted" style="font-size:.88rem">Jede Quest bringt 50 bis 250 XP und trainiert die Skills, denen sie zugeordnet ist. Bei mehreren Skills werden die XP aufgeteilt. Ein Skill braucht für das nächste Level 150 + 4 × Level XP; nach 100 geht es mit Prestige weiter. Dein Charakter-Level wächst mit allen gesammelten XP: 400 + 80 × Level pro Stufe. Ränge: Rookie, Herausforderer (ab 5), Aufsteiger (10), Elite (20), Meister (35), Legende (50).</p></section>`;
+      <p class="muted" style="font-size:.88rem">Jede Quest bringt 50 bis 250 XP und trainiert die Skills, denen sie zugeordnet ist. Bei mehreren Skills werden die XP aufgeteilt. Skills reichen von 0 bis 100; deine Selbsteinschätzung beim Start (0–10) legt den Startwert fest (×10). Ein Skill braucht für das nächste Level 150 + 4 × Level XP. Wer über Level 100 hinauskommt, steigt automatisch in die nächste Prestige-Stufe auf und zählt dort wieder ab Level 1. Dein Charakter-Level wächst mit allen gesammelten XP: 400 + 80 × Level pro Stufe. Ränge: Rookie, Herausforderer (ab 5), Aufsteiger (10), Elite (20), Meister (35), Legende (50).</p></section>`;
 }
 
 /* ----- Sheets ----- */
@@ -1533,9 +1537,12 @@ const ACT = {
     catch(error){ toast(error.message); return; }
     ACCT = null; S = null; OB = null; DEMO = false; AUTH.tab = 'login'; AUTH.err = ''; AUTH.message = ''; saveNotice(); render();
   },
+  'ob-zero'(){ CORE.forEach(c => { OB.scores[c.id] = 0; }); render(); },
   reset(){ UI.confirmReset = true; render(); },
   'reset-no'(){ UI.confirmReset = false; render(); },
-  'reset-yes'(){ const name = S.name, avatarUrl = S.avatar; S = freshState(); S.name = name; S.avatar = avatarUrl; OB = null; UI.confirmReset = false; persist(); render(); },
+  'reset-yes'(){ const s = snap(), keep = {name:S.name, avatar:S.avatar, dailyGoal:S.dailyGoal};
+    S = Object.assign(freshState(), keep, {onboarded:true, attrs:zeroAttrs()}); OB = null; UI.confirmReset = false; UI.tab = 'home';
+    persist(); render(); scrollTo(0,0); toast('Alles auf 0 zurückgesetzt.', s); },
 };
 
 function readAvatar(file){
@@ -1559,8 +1566,10 @@ function completeQuest(id, rect){
   const share = Math.round(q.xp / q.attrs.length), ups = [], gains = [];
   q.attrs.forEach(aid => { const a = attrObj(aid); if (!a) return;
     const from = a.level, fromPct = attrPct(a);
-    const r = gain(a, share); if (r) ups.push({type:'level', id:aid, ...r});
-    gains.push({id:aid, amt:share, from, to:a.level, fromPct, toPct:attrPct(a)}); });
+    const r = gain(a, share);
+    if (r?.prestige){ if (r.from < 100) ups.push({type:'level', id:aid, from:r.from, to:100}); ups.push({type:'prestige', id:aid, p:r.prestige}); }
+    else if (r) ups.push({type:'level', id:aid, ...r});
+    gains.push({id:aid, amt:share, from, to:a.level, up:!!r, fromPct, toPct:attrPct(a)}); });
   const lvBefore = charLvl(S.stats.xp).L;
   S.stats.quests++; S.stats.xp += q.xp;
   const lvAfter = charLvl(S.stats.xp).L; if (lvAfter > lvBefore) ups.push({type:'char', from:lvBefore, to:lvAfter});
@@ -1676,7 +1685,7 @@ function landGain(g, el){
   setTimeout(()=>plus.remove(), 1400);
   const bar = el.querySelector('.mc-bar i'), num = el.querySelector('b');
   bar.style.transition = '';
-  if (g.to > g.from){
+  if (g.up){
     bar.style.width = '100%';
     setTimeout(() => { num.textContent = g.to; num.classList.remove('bump'); void num.offsetWidth; num.classList.add('bump');
       bar.style.transition = 'none'; bar.style.width = '0%'; void bar.offsetWidth; bar.style.transition = ''; bar.style.width = g.toPct + '%'; }, 520);
