@@ -7,7 +7,7 @@ Eine App zur persönlichen Weiterentwicklung im Stil eines modernen Rollenspiels
 - **Charakter** mit Level, Rang (Rookie bis Legende), Gesamt-XP und Profilbild
 - **Skills:** Geist, Körper, Disziplin, Kreativität, Soziales (Level 0–100), dazu freischaltbare Spezial-Skills. Wer über Level 100 hinauskommt, steigt automatisch in die nächste Prestige-Stufe auf
 - **Quests:** Daily Quests, Weekly Challenges, freie Quests und Ziele mit Schritten, die nacheinander freigeschaltet werden
-- **10 Ziel-Vorlagen** (z. B. 10-km-Lauf, neue Sprache, Meditation) mit je 25 Schritten und Medaillen bei Abschluss
+- **21 Ziel-Vorlagen** in Themengruppen (z. B. eigene App bauen, 10-km-Lauf, neue Sprache, Notgroschen, Rauchfrei) mit je 25 Schritten und Medaillen bei Abschluss
 - **Fortschritt:** Tagesziel, Streak, XP der letzten 7 Tage, Auszeichnungen
 - **Feedback:** Konfetti, XP-Animation zu den Skills, Level-up-Einblendungen, Rückgängig für jede Aktion
 - **Onboarding:** Name, Selbsteinschätzung (0–10 ergibt Start-Skill 0–100, mit „Alles auf 0“), vorgeschlagene Start-Quests
