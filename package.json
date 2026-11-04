@@ -1,0 +1,29 @@
+{
+  "name": "level-up-yourself",
+  "version": "1.0.0",
+  "description": "Eine App zur pers\u00f6nlichen Weiterentwicklung im Stil eines modernen Rollenspiels: Du entwickelst deinen eigenen Charakter, trainierst f\u00fcnf Skills und erreichst mit echten Aufgaben dein n\u00e4chstes Level.",
+  "scripts": {
+    "test": "node --experimental-vm-modules --test tests/*.test.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/levelup-labs/levelupyourself/issues"
+  },
+  "homepage": "https://github.com/levelup-labs/levelupyourself#readme",
+  "dependencies": {
+    "@netlify/database": "^2.0.1",
+    "@netlify/functions": "^6.0.3",
+    "@netlify/identity": "^2.0.0",
+    "drizzle-orm": "^1.0.0-beta.22"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "drizzle-kit": "^1.0.0-beta.22",
+    "typescript": "^7.0.2"
+  },
+  "private": true
+}

@@ -14,9 +14,17 @@ Eine App zur persönlichen Weiterentwicklung im Stil eines modernen Rollenspiels
 
 ## Starten
 
-Die App ist eine einzelne Datei ohne Build-Schritt. `index.html` im Browser öffnen genügt, oder über einen beliebigen statischen Host (z. B. GitHub Pages) bereitstellen.
+Die Oberfläche liegt in `public/index.html` und benötigt keinen Build-Schritt. Netlify veröffentlicht ausschließlich `public/` und stellt die serverseitigen Konten- und Spielstand-Endpunkte bereit. Zur lokalen Entwicklung: `npm install` und `netlify dev --port 8889`.
 
 ## Daten
 
-- Als Artifact auf claude.ai werden die Daten privat im claude.ai-Konto gespeichert und sind auf allen Geräten verfügbar.
-- Als eigenständige Datei oder auf einem anderen Host liegen Konten und Spielstände im `localStorage` des jeweiligen Browsers. Passwörter werden dort nur als PBKDF2-Hash abgelegt.
+- Netlify Identity verwaltet Registrierung, Anmeldung, E-Mail-Bestätigung und Passwort-Wiederherstellung. Neue Konten bestätigen zuerst ihre E-Mail-Adresse.
+- Netlify Database speichert pro angemeldetem Konto den Spielstand. Die Endpunkte verwenden ausschließlich die serverseitig geprüfte Konto-ID. Passwörter und alte Passwort-Hashes werden nicht in der Spielstand-Datenbank gespeichert.
+- Beim ersten Anmelden wird ein vorhandener Browser-Spielstand mit derselben E-Mail-Adresse importiert, sofern online noch kein Spielstand existiert. Dafür zuerst ein neues Online-Konto registrieren und bestätigen; bestehende lokale Konten werden nicht automatisch zu Online-Konten.
+- Die Demo speichert keine Daten. Lokale Anzeige-Einstellungen bleiben im Browser.
+- Die Datenbankschemata liegen in `db/schema.ts`. Migrationen unter `netlify/database/migrations/` werden beim Deploy automatisch angewendet. Änderungen mit `npx drizzle-kit generate --name beschreibender_name` vorbereiten.
+- Änderungen werden automatisch gespeichert. Bei Verbindungsfehlern erscheint eine Wiederholungsoption; ungespeicherte Änderungen verhindern das Abmelden. Gleichzeitig geänderte Spielstände anderer Geräte werden durch eine Versionsprüfung geschützt. Vor dem Wechsel des Geräts das Speichern abwarten und dort die Seite neu laden.
+
+## Prüfung
+
+`npm test` prüft Zugriffsschutz, Kontozuordnung, Versionskonflikte und Browser-JavaScript-Syntax. `npm run typecheck` prüft den Servercode.
