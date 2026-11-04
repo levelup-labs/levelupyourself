@@ -27,7 +27,7 @@
   color-scheme:dark;
 }
 *{box-sizing:border-box}
-html,body{min-height:100%}
+html,body{min-height:100%;overscroll-behavior-y:contain}
 body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased;
   background-image:radial-gradient(60% 40% at -10% -5%,rgba(10,166,250,.10),transparent 60%),radial-gradient(50% 35% at 110% 0%,rgba(228,20,168,.09),transparent 60%);background-attachment:fixed}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:40;background:var(--bg)}
@@ -607,6 +607,16 @@ h2{font-size:1.3rem}
 .topbar .wm{font-weight:800;font-stretch:62%;font-size:1.05rem;letter-spacing:.04em;line-height:1}
 .topbar .demo{margin-left:auto;font-size:.72rem;color:var(--muted);display:flex;gap:8px;align-items:center;white-space:nowrap}
 .topbar .demo .link{font-size:.72rem}
+.topbar .tb-reload{margin-left:auto;margin-right:-4px}
+.topbar .demo + .tb-reload{margin-left:4px}
+.icon-btn.soft:hover{color:var(--fg);background:rgba(255,255,255,.06)}
+.tb-reload.spin svg, #ptr.spin svg{animation:ptr-spin .8s linear infinite}
+@keyframes ptr-spin{to{transform:rotate(360deg)}}
+#ptr{position:fixed;top:-36px;left:50%;z-index:60;width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:var(--surface-2);border:1px solid var(--line-2);box-shadow:0 6px 18px rgba(0,0,0,.35);opacity:0;transform:translate(-50%,0);transition:opacity .15s;pointer-events:none;color:var(--muted)}
+#ptr svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#ptr.ready, #ptr.spin{color:var(--fg);border-color:var(--violet-2)}
+.ggroup-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px}
+.ggroup-h h2{font-size:1.1rem}
 .logo{display:block;width:min(240px,62vw);height:auto;margin:0 auto -6px}
 .splash img{width:180px;height:auto;animation:fade .6s}
 .auth{gap:22px}
@@ -740,6 +750,8 @@ const ICON = {
   profile:'<svg viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2.2"/><circle cx="9" cy="17" r="2.2"/></svg>',
   check:'<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
   trash:'<svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>',
+  folder:'<svg viewBox="0 0 24 24"><path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/></svg>',
+  reload:'<svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.35-5.65"/><path d="M20 4v5h-5"/></svg>',
   lock:'<svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>',
   plus:'<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',
   flame:'<svg viewBox="0 0 24 24"><path d="M12 2.6c.8 3.4 6 5.5 6 11a6 6 0 0 1-12 0c0-2.7 1.3-4.4 2.5-5.4.3 2 1.1 3.1 2.4 3.7-.3-3.5.2-6.3 1.1-9.3z"/></svg>',
@@ -812,13 +824,14 @@ try { JSON.parse(localStorage.getItem('luy:folded') || '[]').forEach(id => UI.fo
 const AUTH = {tab:'register', err:'', busy:false, message:'', recoveryToken:null};
 let OB = null;
 
-function freshState(){ return {name:'', onboarded:false, attrs:{}, special:[], goals:[], quests:[], log:[], stats:{quests:0, xp:0, best:0}, days:{}, dailyGoal:3, avatar:null, created:Date.now()}; }
+function freshState(){ return {name:'', onboarded:false, attrs:{}, special:[], goals:[], groups:[], quests:[], log:[], stats:{quests:0, xp:0, best:0}, days:{}, dailyGoal:3, avatar:null, created:Date.now()}; }
 function migrate(st){
   const s = Object.assign(freshState(), st || {});
   s.stats = Object.assign({quests:0, xp:0, best:0}, s.stats);
   if (!s.days || typeof s.days !== 'object') s.days = {};
   if (!Object.keys(s.days).length) s.quests.forEach(q => { if (q.doneAt){ const k = dayKey(new Date(q.doneAt)); const d = s.days[k] || (s.days[k] = {n:0, xp:0}); d.n++; d.xp += q.xp || 0; } });
   if (!s.dailyGoal) s.dailyGoal = 3;
+  if (!Array.isArray(s.groups)) s.groups = [];
   return s;
 }
 
@@ -1071,7 +1084,7 @@ function finishOnboard(){
 /* ----- Shell ----- */
 function renderMain(){
   let html = '';
-  html += `<div class="topbar">${MARK}<span class="wm">LEVEL UP YOURSELF</span>${DEMO ? `<span class="demo">Demo<button class="link" data-act="leave-demo">Eigenen Charakter ›</button></span>` : ''}</div>`;
+  html += `<div class="topbar">${MARK}<span class="wm">LEVEL UP YOURSELF</span>${DEMO ? `<span class="demo">Demo<button class="link" data-act="leave-demo">Eigenen Charakter ›</button></span>` : ''}<button class="icon-btn soft tb-reload" data-act="reload" aria-label="Neu laden" title="Neu laden">${ICON.reload}</button></div>`;
   html += ({home:viewHome, quests:viewQuests, attrs:viewCard, progress:viewProgress, profile:viewProfile}[UI.tab] || viewHome)();
   app().innerHTML = `<div class="wrap"><div class="stack">${html}</div></div>`;
   if (!$('#nav-root')){ const n = document.createElement('div'); n.id = 'nav-root'; document.body.appendChild(n); }
@@ -1080,6 +1093,43 @@ function renderMain(){
   if (FLASH.length) setTimeout(()=>{ FLASH = []; }, 3000);
   if (FRESH) setTimeout(()=>{ FRESH = null; }, 2500);
 }
+
+/* Reload: first save pending changes, then fetch the latest save from the server (e.g. changes from another device). */
+let RELOADING = false;
+async function reloadState(){
+  if (RELOADING) return; RELOADING = true;
+  document.querySelectorAll('.tb-reload').forEach(b => b.classList.add('spin'));
+  try {
+    if (DEMO || !ACCT){ render(); toast('Aktualisiert.'); return; }
+    if (dirty && !(await flushSave())) return; // saveNotice already explains the problem
+    const result = await api('progress');
+    if (result.state){ S = migrate(result.state); version = result.version; }
+    FLASH = []; render(); toast('Aktualisiert.');
+  } catch (error){ toast(error.message || 'Neu laden fehlgeschlagen.'); }
+  finally { RELOADING = false; document.querySelectorAll('.tb-reload').forEach(b => b.classList.remove('spin')); ptrReset(); }
+}
+/* Pull to refresh: drag the page down from the very top. */
+const PTR = {y0:null, dy:0};
+function ptrEl(){ let el = $('#ptr'); if (!el){ el = document.createElement('div'); el.id = 'ptr'; el.setAttribute('aria-hidden','true'); el.innerHTML = ICON.reload; document.body.appendChild(el); } return el; }
+function ptrReset(){ const el = $('#ptr'); if (el){ el.style.transform = ''; el.style.opacity = ''; el.classList.remove('ready','spin'); } PTR.y0 = null; PTR.dy = 0; }
+addEventListener('touchstart', e => {
+  if (scrollY > 0 || e.touches.length !== 1 || !S || !S.onboarded || !ACCT && !DEMO || $('#sheet-root').innerHTML || $('#ov-root').innerHTML) return;
+  PTR.y0 = e.touches[0].clientY; PTR.dy = 0;
+}, {passive:true});
+addEventListener('touchmove', e => {
+  if (PTR.y0 == null || RELOADING) return;
+  PTR.dy = e.touches[0].clientY - PTR.y0;
+  if (PTR.dy <= 0 || scrollY > 0){ ptrReset(); return; }
+  const d = Math.min(PTR.dy * .5, 90), el = ptrEl();
+  el.style.opacity = Math.min(1, d / 50); el.style.transform = `translate(-50%, ${d}px) rotate(${d * 4}deg)`;
+  el.classList.toggle('ready', d >= 60);
+}, {passive:true});
+addEventListener('touchend', () => {
+  if (PTR.y0 == null) return;
+  if (Math.min(PTR.dy * .5, 90) >= 60 && !RELOADING){ const el = ptrEl(); el.classList.add('spin'); el.style.transform = 'translate(-50%, 60px)'; reloadState(); }
+  else ptrReset();
+  PTR.y0 = null;
+});
 
 function stickyState(){ const el = document.querySelector('.mc-sticky'); if (!el) return; const c = el.classList.contains('compact'); if (!c && scrollY > 220) el.classList.add('compact'); else if (c && scrollY < 60) el.classList.remove('compact'); }
 addEventListener('scroll', stickyState, {passive:true});
@@ -1305,9 +1355,9 @@ function viewCard(){
       <div class="sk-txt"><span>${a.xp} / ${need(a.level)} XP</span><span>noch ${need(a.level)-a.xp} bis ${a.level>=100 ? `Prestige ${(a.prestige||1)+1}` : a.level+1}</span></div></div>`; }).join('');
   const profOpen = !UI.folded.has('sec-radar');
   return `${card}
-    <section class="panel"><button class="fold-h" data-act="fold" data-id="sec-radar" aria-expanded="${profOpen}"><span class="chev" aria-hidden="true"></span><span class="fh-t"><h2>Skill-Profil</h2></span><span class="fh-m">Stärkster: ${top.name}</span></button>${profOpen ? radar() : ''}</section>
     <section class="panel"><div class="sec-h" style="padding:0 0 2px"><div><h2>Skills</h2><span class="sec-m">Jede Quest trainiert die Skills, denen sie zugeordnet ist</span></div></div>${skills}
-      ${S.special.length===0 ? `<p class="muted" style="margin-top:10px;font-size:.8rem">Spezial-Skills wie Ausdauer oder Charisma schaltest du frei, indem du anspruchsvolle Ziele abschließt.</p>`:''}</section>`;
+      ${S.special.length===0 ? `<p class="muted" style="margin-top:10px;font-size:.8rem">Spezial-Skills wie Ausdauer oder Charisma schaltest du frei, indem du anspruchsvolle Ziele abschließt.</p>`:''}</section>
+    <section class="panel"><button class="fold-h" data-act="fold" data-id="sec-radar" aria-expanded="${profOpen}"><span class="chev" aria-hidden="true"></span><span class="fh-t"><h2>Skill-Profil</h2></span><span class="fh-m">Stärkster: ${top.name}</span></button>${profOpen ? radar() : ''}</section>`;
 }
 function viewProgress(){
   const st = streak();
@@ -1379,15 +1429,18 @@ function awardSheet(id){
 function goalProgress(g){ const qs = S.quests.filter(q=>q.goalId===g.id); const tot = qs.reduce((s,q)=>s+q.target,0)||1; const done = qs.reduce((s,q)=>s+Math.min(q.count,q.target),0); return {qs, pct:Math.round(done/tot*100)}; }
 function goalsBody(){
   const mine = UI.gTab === 'mine';
-  const head = `<div class="spread"><div class="seg" style="flex:1" role="group" aria-label="Ziele"><button data-act="gtab" data-v="mine" aria-pressed="${mine}">Meine Ziele</button><button data-act="gtab" data-v="tpl" aria-pressed="${!mine}">Vorlagen</button></div><button class="btn small ghost" data-act="new-goal" aria-label="Eigenes Ziel anlegen">${ICON.plus}Ziel</button></div>`;
+  const head = `<div class="spread"><div class="seg" style="flex:1" role="group" aria-label="Ziele"><button data-act="gtab" data-v="mine" aria-pressed="${mine}">Meine Ziele</button><button data-act="gtab" data-v="tpl" aria-pressed="${!mine}">Ziele entdecken</button></div><button class="btn small ghost" data-act="new-goal" aria-label="Eigenes Ziel anlegen">${ICON.plus}Ziel</button></div>`;
+  const groupBar = `<div class="spread"><span class="muted" style="font-size:.85rem">${S.groups.length ? 'Ordne deine Ziele in Gruppen.' : 'Bündle deine Ziele in Gruppen, z. B. Gesundheit oder Beruf.'}</span><button class="btn small ghost" data-act="new-group">${ICON.plus}Gruppe</button></div>`;
   if (mine){
-    if (!S.goals.length) return head + `<div class="empty"><h3 style="color:var(--fg)">Noch kein Ziel</h3>Ziele bündeln viele Quests zu einem größeren Vorhaben. Starte mit einer Vorlage oder bau dein eigenes.<button class="btn small primary" data-act="gtab" data-v="tpl">Vorlagen ansehen</button></div>`;
+    if (!S.goals.length && !S.groups.length) return head + groupBar + `<div class="empty"><h3 style="color:var(--fg)">Noch kein Ziel</h3>Ziele bündeln viele Quests zu einem größeren Vorhaben. Starte mit einer Vorlage oder bau dein eigenes.<button class="btn small primary" data-act="gtab" data-v="tpl">Ziele entdecken</button></div>`;
     const sorted = [...S.goals].sort((a,b)=>(a.done-b.done) || b.created-a.created);
-    return head + sorted.map(g => { const {qs, pct} = goalProgress(g);
-      return `<article class="panel goal ${g.done?'done':''}"><div class="spread" style="align-items:flex-start"><h3 style="min-width:0">${esc(g.name)}</h3>${g.done?'<span class="chip" style="--c:var(--emerald)">Erreicht</span>':`<span class="num" style="font-size:1.35rem">${pct}<small style="font-size:.8rem;color:var(--muted)">%</small></span>`}</div>
-        <div class="bar"><i style="width:${pct}%;${g.done?'background:var(--emerald)':''}"></i></div>
-        <div class="spread"><span class="muted tnum" style="font-size:.78rem">${qs.filter(q=>q.done).length} von ${qs.length} Quests${g.unlock?` · <span class="unlock" style="font-size:.78rem">${g.done?'Freigeschaltet':'Schaltet frei'}: ${esc(g.unlock.name)}</span>`:''}</span>
-        <span class="row" style="gap:2px;flex-wrap:nowrap"><button class="btn small ghost" data-act="goal-quests" data-id="${g.id}">Quests</button>${g.seq?'':`<button class="icon-btn" style="color:var(--violet-2)" data-act="new-quest" data-goal="${g.id}" aria-label="Quest zu diesem Ziel hinzufügen">${ICON.plus}</button>`}<button class="icon-btn" data-act="del-goal" data-id="${g.id}" aria-label="Ziel löschen">${ICON.trash}</button></span></div></article>`; }).join('');
+    const known = new Set(S.groups.map(gr=>gr.id));
+    const groupHead = (title, n, gr) => `<div class="ggroup-h"><h2>${esc(title)}</h2><span class="muted tnum" style="font-size:.8rem">${n} ${n===1?'Ziel':'Ziele'}</span>
+      ${gr ? `<span class="row" style="gap:2px;flex-wrap:nowrap;margin-left:auto"><button class="btn small ghost" data-act="new-goal" data-group="${gr.id}" aria-label="Neues Ziel in „${esc(gr.name)}“">${ICON.plus}Ziel</button><button class="icon-btn" data-act="del-group" data-id="${gr.id}" aria-label="Gruppe „${esc(gr.name)}“ löschen">${ICON.trash}</button></span>` : ''}</div>`;
+    const sections = S.groups.map(gr => { const list = sorted.filter(g=>g.group===gr.id);
+      return groupHead(gr.name, list.length, gr) + (list.length ? list.map(goalCard).join('') : `<div class="empty" style="padding:14px">Noch keine Ziele in dieser Gruppe.</div>`); }).join('');
+    const loose = sorted.filter(g=>!g.group || !known.has(g.group));
+    return head + groupBar + sections + (loose.length ? (S.groups.length ? groupHead('Ohne Gruppe', loose.length) : '') + loose.map(goalCard).join('') : '');
   }
   return head + GT.map(t => {
     const has = S.goals.some(g=>g.tpl===t.id && !g.done), open = UI.expanded.has('tpl-'+t.id);
@@ -1395,6 +1448,31 @@ function goalsBody(){
       <div class="row" style="gap:6px">${t.attrs.map(a=>`<span class="chip" style="--c:var(--c-${a})">${aIcon(a)}${meta(a).name}</span>`).join('')}<span class="muted tnum" style="font-size:.75rem">${t.steps.length} Schritte · ${fmt(tplXp(t))} XP</span></div>
       ${open ? `<p class="muted" style="font-size:.86rem">${esc(t.desc)}</p>${t.unlock?`<span class="unlock">${ICON.lock} Schaltet frei: ${esc(t.unlock.name)}</span>`:''}` : ''}
       <button class="more" data-act="expand" data-id="tpl-${t.id}">${open?'Weniger':'Details'}</button></article>`; }).join('');
+}
+const groupName = id => S.groups.find(x=>x.id===id)?.name || '';
+function goalCard(g){ const {qs, pct} = goalProgress(g);
+      return `<article class="panel goal ${g.done?'done':''}"><div class="spread" style="align-items:flex-start"><h3 style="min-width:0">${esc(g.name)}</h3>${g.done?'<span class="chip" style="--c:var(--emerald)">Erreicht</span>':`<span class="num" style="font-size:1.35rem">${pct}<small style="font-size:.8rem;color:var(--muted)">%</small></span>`}</div>
+        <div class="bar"><i style="width:${pct}%;${g.done?'background:var(--emerald)':''}"></i></div>
+        <div class="spread"><span class="muted tnum" style="font-size:.78rem">${qs.filter(q=>q.done).length} von ${qs.length} Quests${g.unlock?` · <span class="unlock" style="font-size:.78rem">${g.done?'Freigeschaltet':'Schaltet frei'}: ${esc(g.unlock.name)}</span>`:''}</span>
+        <span class="row" style="gap:2px;flex-wrap:nowrap"><button class="btn small ghost" data-act="goal-quests" data-id="${g.id}">Quests</button>${g.seq?'':`<button class="icon-btn" style="color:var(--violet-2)" data-act="new-quest" data-goal="${g.id}" aria-label="Quest zu diesem Ziel hinzufügen">${ICON.plus}</button>`}<button class="icon-btn" style="color:var(--muted)" data-act="goal-group" data-id="${g.id}" aria-label="Gruppe für „${esc(g.name)}“ wählen" title="Gruppe">${ICON.folder}</button><button class="icon-btn" data-act="del-goal" data-id="${g.id}" aria-label="Ziel löschen">${ICON.trash}</button></span></div></article>`;
+}
+/* Sheet: choose or create a goal group. With a goal id it assigns the goal; without one it only creates a group. */
+let GRP_GOAL = null;
+function groupSheet(goalId){
+  GRP_GOAL = goalId; const g = goalId ? S.goals.find(x=>x.id===goalId) : null;
+  openSheet(`<div class="stack"><div class="spread"><h2>${g ? 'Gruppe wählen' : 'Neue Gruppe'}</h2><button type="button" class="btn small ghost" data-act="close">Schließen</button></div>
+    ${g ? `<p class="muted" style="font-size:.88rem">Wohin gehört „${esc(g.name)}“?</p>
+      <div class="stack" style="gap:6px">${S.groups.map(gr=>`<button type="button" class="tpl" data-act="set-group" data-g="${gr.id}" aria-pressed="${g.group===gr.id}"><span>${esc(gr.name)}</span>${g.group===gr.id?`<span class="xp">aktuell</span>`:''}</button>`).join('')}
+        <button type="button" class="tpl" data-act="set-group" data-g="" aria-pressed="${!g.group}"><span>Ohne Gruppe</span>${!g.group?`<span class="xp">aktuell</span>`:''}</button></div>` : ''}
+    <form class="stack" data-form="group" style="gap:10px"><label class="f">${g ? 'Oder neue Gruppe anlegen' : 'Name der Gruppe'}<input class="inp" id="grp-name" maxlength="40" placeholder="z. B. Gesundheit, Beruf, Familie" ${g?'':'required'}></label>
+      <p class="err" id="grp-err" hidden></p><button class="btn primary block">${g ? 'Anlegen und zuordnen' : 'Gruppe anlegen'}</button></form></div>`);
+  if (g) document.activeElement?.blur(); // choosing an existing group should not pop up the keyboard
+}
+/* Returns the id of the group with this name, creating it if needed. */
+function ensureGroup(name){
+  const n = name.trim(); if (!n) return null;
+  const hit = S.groups.find(gr=>gr.name.toLowerCase()===n.toLowerCase()); if (hit) return hit.id;
+  const gr = {id:uid(), name:n, created:Date.now()}; S.groups.push(gr); return gr.id;
 }
 
 /* ----- Profile ----- */
@@ -1409,7 +1487,8 @@ function viewProfile(){
       <div class="seg" role="group" aria-label="Tagesziel">${[1,2,3,4,5].map(n=>`<button data-act="dgoal" data-v="${n}" aria-pressed="${S.dailyGoal===n}">${n}</button>`).join('')}</div></section>
     <section class="panel"><div class="spread"><div><h3>Nächste Herausforderung</h3><p class="muted" style="font-size:.85rem;margin-top:4px">Zeigt auf „Heute“ den nächsten Meilenstein deiner Ziele.</p></div>
       <button class="btn small ${S.hideNC?'primary':'ghost'}" data-act="nc-toggle">${S.hideNC?'Einblenden':'Ausblenden'}</button></div></section>
-    <section class="panel stack" style="gap:6px"><h3>Letzte XP</h3>${S.log.length ? `<div class="log">${S.log.slice(0,12).map(l=>`<div><span>${esc(l.title)}</span><span class="xp">+${l.xp}<small>XP</small></span></div>`).join('')}</div>` : '<p class="muted">Hier erscheinen deine erledigten Quests.</p>'}</section>
+    <section class="panel stack" style="gap:6px"><div class="spread"><h3>Letzte XP</h3>${S.log.length ? `<button class="btn small ghost" data-act="log-clear">Alle löschen</button>` : ''}</div>${S.log.length ? `<div class="log">${S.log.slice(0,12).map((l,i)=>`<div><span>${esc(l.title)}</span><span class="row" style="gap:4px;flex-wrap:nowrap"><span class="xp">+${l.xp}<small>XP</small></span><button class="icon-btn" data-act="log-del" data-i="${i}" aria-label="Eintrag „${esc(l.title)}“ löschen">${ICON.trash}</button></span></div>`).join('')}</div>
+      <p class="muted" style="font-size:.78rem">Löscht nur den Eintrag in dieser Liste. Deine XP und Skills bleiben erhalten.</p>` : '<p class="muted">Hier erscheinen deine erledigten Quests.</p>'}</section>
     <section class="panel stack" style="gap:10px"><h3>Konto</h3>
       <p style="font-size:.9rem"><span class="muted">E-Mail:</span> ${esc(DEMO?'demo@levelup':ACCT.email)}</p><p style="font-size:.9rem"><span class="muted">Speicherort:</span> ${modeText}</p>
       <div class="row"><button class="btn small ghost" data-act="logout">${DEMO?'Demo beenden':'Abmelden'}</button>
@@ -1468,6 +1547,8 @@ function goalSheet(){
   openSheet(`<form class="stack" data-form="goal"><div class="spread"><h2>Eigenes Ziel</h2><button type="button" class="btn small ghost" data-act="close">Schließen</button></div>
     <label class="f">Name<input class="inp" id="gf-name" data-gf="name" maxlength="70" value="${esc(GF.name)}" placeholder="z. B. Eine eigene Website bauen" required></label>
     <label class="f">Beschreibung<textarea class="inp" id="gf-desc" data-gf="desc" maxlength="240" placeholder="Was willst du erreichen und warum?">${esc(GF.desc)}</textarea></label>
+    <div class="row"><label class="f" style="flex:1;min-width:150px">Gruppe<select class="inp" id="gf-group" data-gf="group"><option value="">Ohne Gruppe</option>${S.groups.map(gr=>`<option value="${gr.id}" ${GF.group===gr.id?'selected':''}>${esc(gr.name)}</option>`).join('')}</select></label>
+      <label class="f" style="flex:1;min-width:150px">oder neue Gruppe<input class="inp" id="gf-newgroup" data-gf="newGroup" maxlength="40" value="${esc(GF.newGroup)}" placeholder="z. B. Gesundheit"></label></div>
     <div class="spread"><h3>Quests</h3><span class="muted" style="font-size:.8rem">${GF.quests.length} geplant</span></div>
     ${GF.quests.map((q,i)=>`<div class="qrow"><div class="spread"><span class="lbl">Quest ${i+1}</span>${GF.quests.length>1?`<button type="button" class="icon-btn" data-act="gf-del" data-i="${i}" aria-label="Quest ${i+1} entfernen">${ICON.trash}</button>`:''}</div>
       <input class="inp" id="gf-t-${i}" data-gf="${i}.title" maxlength="80" value="${esc(q.title)}" placeholder="Was ist zu tun?" aria-label="Titel Quest ${i+1}">
@@ -1526,7 +1607,14 @@ const ACT = {
   'qf-tpl'(b){ const t = QT[b.dataset.k]; syncQF(); QF.title = t.t; QF.xp = t.xp; QF.attrs = [t.a]; if (QF.kind === 'once') QF.target = t.n; questSheet(); $('#qf-title').focus(); },
   'qf-xp'(b){ syncQF(); QF.xp = +b.dataset.v; b.parentNode.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed', x===b)); },
   'qf-attr'(b){ const id = b.dataset.v; QF.attrs = QF.attrs.includes(id) ? QF.attrs.filter(x=>x!==id) : [...QF.attrs, id]; b.setAttribute('aria-pressed', QF.attrs.includes(id)); },
-  'new-goal'(){ GF = {name:'', desc:'', quests:[{title:'', xp:100, attr:'geist', target:1}]}; goalSheet(); },
+  'new-goal'(b){ GF = {name:'', desc:'', group:b?.dataset.group || '', newGroup:'', quests:[{title:'', xp:100, attr:'geist', target:1}]}; goalSheet(); },
+  'log-del'(b){ const i = +b.dataset.i; if (!S.log[i]) return; const s = snap(); S.log.splice(i, 1); persist(); render(); toast('Eintrag gelöscht.', s); },
+  'log-clear'(){ if (!S.log.length) return; const s = snap(); S.log = []; persist(); render(); toast('Liste „Letzte XP“ geleert.', s); },
+  reload(){ reloadState(); },
+  'new-group'(){ groupSheet(null); },
+  'goal-group'(b){ groupSheet(b.dataset.id); },
+  'set-group'(b){ const g = S.goals.find(x=>x.id===GRP_GOAL); if (!g) return closeSheet(); const s = snap(); g.group = b.dataset.g || null; closeSheet(); persist(); render(); toast(g.group ? `„${g.name}“ liegt jetzt in „${groupName(g.group)}“.` : `„${g.name}“ ist jetzt ohne Gruppe.`, s); },
+  'del-group'(b){ const gr = S.groups.find(x=>x.id===b.dataset.id); if (!gr) return; const s = snap(); S.groups = S.groups.filter(x=>x!==gr); S.goals.forEach(g => { if (g.group===gr.id) g.group = null; }); persist(); render(); toast(`Gruppe „${gr.name}“ gelöscht. Ihre Ziele sind jetzt ohne Gruppe.`, s); },
   'gf-add'(){ GF.quests.push({title:'', xp:100, attr:GF.quests.at(-1)?.attr || 'geist', target:1}); goalSheet(); $(`#gf-t-${GF.quests.length-1}`).focus(); },
   'gf-del'(b){ GF.quests.splice(+b.dataset.i, 1); goalSheet(); },
   'nc-hide'(){ const s = snap(); S.hideNC = true; persist(); render(); toast('Nächste Herausforderung ausgeblendet. Im Profil kannst du sie wieder einblenden.', s); },
@@ -1729,11 +1817,20 @@ document.addEventListener('submit', e => {
     S.quests.push(makeQuest({title:QF.title.trim(), xp:QF.xp, attrs:QF.attrs, goalId:k==='once' ? (QF.goalId||null) : null, target:k==='daily' ? 1 : QF.target, kind:k}));
     closeSheet(); persist(); render(); toast(k==='daily' ? 'Daily Quest angelegt.' : k==='weekly' ? 'Weekly Challenge angelegt.' : 'Quest angelegt.', s); return;
   }
+  if (f === 'group'){
+    const name = $('#grp-name').value.trim(), err = $('#grp-err');
+    if (!name){ err.textContent = 'Gib der Gruppe einen Namen.'; err.hidden = false; return; }
+    const s = snap(), id = ensureGroup(name), g = GRP_GOAL ? S.goals.find(x=>x.id===GRP_GOAL) : null;
+    if (g) g.group = id;
+    closeSheet(); persist(); UI.gTab = 'mine'; UI.tab = 'quests'; UI.qView = 'goals'; render();
+    toast(g ? `„${g.name}“ liegt jetzt in „${groupName(id)}“.` : `Gruppe „${groupName(id)}“ angelegt.`, s); return;
+  }
   if (f === 'goal'){
     const err = $('#gf-err'); const qs = GF.quests.filter(q=>q.title.trim());
     if (!GF.name.trim()){ err.textContent = 'Gib dem Ziel einen Namen.'; err.hidden = false; return; }
     if (!qs.length){ err.textContent = 'Ein Ziel braucht mindestens eine Quest mit Titel.'; err.hidden = false; return; }
-    const s = snap(); const g = {id:uid(), name:GF.name.trim(), desc:GF.desc.trim(), tpl:null, unlock:null, done:false, created:Date.now()};
+    const s = snap(); const group = GF.newGroup.trim() ? ensureGroup(GF.newGroup) : (S.groups.some(gr=>gr.id===GF.group) ? GF.group : null);
+    const g = {id:uid(), name:GF.name.trim(), desc:GF.desc.trim(), tpl:null, unlock:null, done:false, group, created:Date.now()};
     S.goals.push(g); qs.forEach(q => S.quests.push(makeQuest({title:q.title.trim(), xp:q.xp, attrs:[q.attr], target:q.target, goalId:g.id})));
     closeSheet(); persist(); UI.gTab = 'mine'; UI.tab = 'quests'; UI.qView = 'goals'; render(); toast(`Ziel „${g.name}“ mit ${qs.length} Quests angelegt.`, s);
   }
