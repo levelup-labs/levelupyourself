@@ -329,6 +329,28 @@ b.bump,.bump{animation:gainpop .8s ease}
 .sk-lv{font-size:1.9rem;color:var(--c);text-align:right}
 .skill .bar{grid-column:2/-1}
 .sk-txt{grid-column:2/-1;display:flex;justify-content:space-between;gap:10px;font-size:.75rem;color:var(--muted);font-variant-numeric:tabular-nums}
+button.skill{width:100%;background:none;border:0;border-bottom:1px solid var(--line);color:inherit;font:inherit;text-align:left;cursor:pointer;border-radius:0;transition:background .2s}
+button.skill:last-of-type{border-bottom:0}
+button.skill .bar{display:block}
+button.skill:hover .sk-tip,button.skill:focus-visible .sk-tip{opacity:1}
+button.skill:focus-visible{outline:2px solid var(--c);outline-offset:2px;border-radius:10px}
+.sk-tip{margin-left:auto;font-size:.72rem;font-weight:650;color:var(--c);opacity:.75;white-space:nowrap}
+/* Skill tips sheet */
+.tip-hd{display:flex;gap:12px;align-items:center;min-width:0}.tip-hd h2{margin:0}
+.tip-hd .sk-ic{grid-row:auto;flex:none}
+.tip-h{display:flex;flex-direction:column;gap:2px;margin-top:8px}.tip-h h3{margin:0}.tip-h .muted{font-size:.78rem}
+.tip,.tip-goal{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--r-sm);background:var(--surface);border:1px solid var(--line)}
+.tip-goal{width:100%;text-align:left;color:inherit;font:inherit;cursor:pointer}
+.tip-goal:disabled{opacity:.55;cursor:default}
+.tip-t{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}.tip-t b{font-weight:650;font-size:.9rem;line-height:1.3}.tip-t small{font-size:.74rem}
+.tip-add{flex:none;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;border:1px solid color-mix(in srgb,var(--c) 45%,transparent);background:color-mix(in srgb,var(--c) 14%,transparent);color:var(--c);cursor:pointer}
+.tip-add svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+.tip-add:disabled{opacity:.6;cursor:default;background:transparent}
+/* Home filter chips */
+.hfilter{display:flex;gap:5px;margin:-2px 0 10px}
+.hfilter button{flex:1 1 auto;min-width:0;display:inline-flex;align-items:center;justify-content:center;gap:5px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--muted);font:inherit;font-size:.78rem;font-weight:650;padding:7px 8px;cursor:pointer;white-space:nowrap;transition:background .2s,color .2s,border-color .2s}
+.hfilter button span{font-size:.72rem;opacity:.75}
+.hfilter button[aria-pressed="true"]{background:var(--surface-3);color:var(--fg);border-color:var(--line-2)}
 .prest{font-size:.64rem;font-weight:800;letter-spacing:.12em;color:var(--gold)}
 
 /* week chart */
@@ -691,7 +713,60 @@ const QT = [
   {a:'sozial',t:'Mit einer Kollegin oder einem Kollegen Mittag essen',xp:100,b:1,n:1},
   {a:'sozial',t:'Ein Treffen mit Freunden organisieren',xp:175,b:0,n:1},
   {a:'sozial',t:'Einen Tag ehrenamtlich mithelfen',xp:250,b:0,n:1},
+  // k = kind: 'daily' (resets every day), 'weekly' (n = times per week); without k a template is one-off.
+  {a:'geist',k:'daily',t:'10 Seiten lesen',xp:50,n:1},
+  {a:'geist',k:'daily',t:'15 Min. eine Sprache üben',xp:50,n:1},
+  {a:'geist',k:'daily',t:'3 Erkenntnisse des Tages notieren',xp:50,n:1},
+  {a:'geist',k:'daily',t:'10 Min. meditieren',xp:50,n:1},
+  {a:'geist',k:'weekly',t:'Eine Lektion im Online-Kurs abschließen',xp:100,n:3},
+  {a:'geist',k:'weekly',t:'Einen Podcast oder Vortrag zu einem neuen Thema hören',xp:50,n:2},
+  {a:'geist',k:'weekly',t:'1 Std. Deep Work am Stück',xp:100,n:3},
+  {a:'geist',t:'Einen Wochenrückblick schreiben',xp:100,n:1},
+  {a:'geist',t:'Eine Doku zu einem neuen Thema schauen und zusammenfassen',xp:100,n:1},
+  {a:'geist',t:'Ein Zertifikat oder eine Prüfung ablegen',xp:250,n:1},
+  {a:'koerper',k:'daily',t:'10.000 Schritte gehen',xp:100,n:1},
+  {a:'koerper',k:'daily',t:'10 Min. dehnen oder Mobility',xp:50,n:1},
+  {a:'koerper',k:'daily',t:'2 Liter Wasser trinken',xp:50,n:1},
+  {a:'koerper',k:'daily',t:'Zu jeder Mahlzeit Gemüse oder Obst essen',xp:50,n:1},
+  {a:'koerper',k:'weekly',t:'Mindestens 30 Min. Sport',xp:100,n:3},
+  {a:'koerper',k:'weekly',t:'Laufen gehen',xp:100,n:2},
+  {a:'koerper',k:'weekly',t:'Einen Tag ohne Zucker',xp:50,n:3},
+  {a:'koerper',t:'Einen Gesundheits-Check-up machen',xp:100,n:1},
+  {a:'koerper',t:'Eine neue Sportart ausprobieren',xp:100,n:1},
+  {a:'koerper',t:'Eine Wanderung von mindestens 15 km',xp:175,n:1},
+  {a:'disziplin',k:'daily',t:'Zur gleichen Zeit aufstehen',xp:50,n:1},
+  {a:'disziplin',k:'daily',t:'Die 3 wichtigsten Aufgaben des Tages festlegen',xp:50,n:1},
+  {a:'disziplin',k:'daily',t:'Die erste Stunde nach dem Aufstehen ohne Handy',xp:100,n:1},
+  {a:'disziplin',k:'daily',t:'Abends 10 Min. aufräumen',xp:50,n:1},
+  {a:'disziplin',k:'weekly',t:'Die kommende Woche planen',xp:100,n:1},
+  {a:'disziplin',k:'weekly',t:'Einen Abend ohne Bildschirm',xp:100,n:2},
+  {a:'disziplin',k:'weekly',t:'Den Posteingang auf null bringen',xp:100,n:1},
+  {a:'disziplin',t:'Ein Abo kündigen, das du nicht nutzt',xp:50,n:1},
+  {a:'disziplin',t:'Einen Monatsbudget-Plan aufstellen',xp:100,n:1},
+  {a:'disziplin',t:'Einen Raum komplett entrümpeln',xp:175,n:1},
+  {a:'kreativ',k:'daily',t:'10 Min. Tagebuch oder freies Schreiben',xp:50,n:1},
+  {a:'kreativ',k:'daily',t:'Ein Foto mit bewusst gewähltem Motiv machen',xp:50,n:1},
+  {a:'kreativ',k:'daily',t:'15 Min. ein Instrument üben',xp:50,n:1},
+  {a:'kreativ',k:'weekly',t:'Etwas zeichnen, malen oder basteln',xp:100,n:2},
+  {a:'kreativ',k:'weekly',t:'Einen Ort besuchen, an dem du noch nie warst',xp:100,n:1},
+  {a:'kreativ',k:'weekly',t:'Ein neues Rezept kochen',xp:100,n:1},
+  {a:'kreativ',t:'Ein Moodboard für ein eigenes Projekt erstellen',xp:100,n:1},
+  {a:'kreativ',t:'Einen Workshop oder Kreativkurs besuchen',xp:175,n:1},
+  {a:'kreativ',t:'Ein eigenes Werk veröffentlichen oder vorstellen',xp:175,n:1},
+  {a:'sozial',k:'daily',t:'Jemandem ein ehrliches Kompliment machen',xp:50,n:1},
+  {a:'sozial',k:'daily',t:'Ein Gespräch ohne Handy in der Hand führen',xp:50,n:1},
+  {a:'sozial',k:'daily',t:'Einer Person aktiv zuhören und nachfragen',xp:50,n:1},
+  {a:'sozial',k:'weekly',t:'Familie oder Freunde anrufen',xp:50,n:2},
+  {a:'sozial',k:'weekly',t:'Etwas mit anderen gemeinsam unternehmen',xp:100,n:1},
+  {a:'sozial',k:'weekly',t:'Jemandem bei etwas helfen',xp:100,n:2},
+  {a:'sozial',t:'Eine neue Person kennenlernen und ins Gespräch kommen',xp:100,n:1},
+  {a:'sozial',t:'Dich bei jemandem nach langer Zeit wieder melden',xp:50,n:1},
+  {a:'sozial',t:'Einem Verein oder einer Gruppe beitreten',xp:175,n:1},
 ];
+const qtKind = t => t.k || 'once';
+const tplTimes = t => t.n > 1 ? (qtKind(t) === 'weekly' ? ` · ${t.n}× pro Woche` : ` · ${t.n}×`) : '';
+// One quest from a template, with the template's kind and target.
+const questFromTpl = t => makeQuest({title:t.t, xp:t.xp, attrs:[t.a], target: qtKind(t) === 'daily' ? 1 : t.n, kind:qtKind(t)});
 
 // Goal templates: sequential step lists. Steps unlock one after another.
 const GT = [
@@ -871,7 +946,7 @@ let ACCT = null, S = null, DEMO = false, FLASH = [], FRESH = null;
 // Quests just completed stay visible (checked) for a moment, then slide out of the overview.
 const LINGER = new Set();
 const listOrDone = (arr, msg) => { const vis = arr.filter(q => !doneNow(q) || LINGER.has(q.id)); return vis.length ? `<div class="qlist">${vis.map(questRow).join('')}</div>` : `<div class="alldone">${ICON.check}<span>${msg}</span></div>`; };
-const UI = {tab:'home', qView:'tasks', homeAll:false, showDone:false, qFilter:'active', gTab:'mine', confirmReset:false, expanded:new Set(), folded:new Set(), openRows:new Set()};
+const UI = {tab:'home', qView:'tasks', homeFilter:ls.get('luy:hfilter') || 'all', showDone:false, qFilter:'active', gTab:'mine', confirmReset:false, expanded:new Set(), folded:new Set(), openRows:new Set()};
 try { JSON.parse(localStorage.getItem('luy:folded') || '[]').forEach(id => UI.folded.add(id)); } catch {}
 const AUTH = {tab:'register', err:'', busy:false, message:'', recoveryToken:null};
 let OB = null;
@@ -1116,7 +1191,7 @@ const obNoneLabel = () => OB.picks.size ? 'Alle abwählen' : 'Vorschläge wähle
 function suggestions(){
   const out = [];
   CORE.forEach(c => {
-    const v = OB.scores[c.id], beg = QT.filter(q=>q.a===c.id && q.b), adv = QT.filter(q=>q.a===c.id && !q.b);
+    const v = OB.scores[c.id], beg = QT.filter(q=>q.a===c.id && !q.k && q.b), adv = QT.filter(q=>q.a===c.id && !q.k && q.b===0);
     const list = v <= 3 ? beg.slice(0,3) : v <= 6 ? beg.slice(0,2) : v <= 8 ? [beg[0], adv[0]] : [adv[0]];
     list.forEach(q => out.push({...q, key:QT.indexOf(q), pre: v <= 4}));
   });
@@ -1258,7 +1333,7 @@ function ncRow(){
 function compactRow(q){
   const k = kindOf(q), dn = doneNow(q), a = q.attrs[0], g = q.goalId && S.goals.find(x=>x.id===q.goalId);
   const total = q.step != null ? S.quests.filter(x=>x.goalId===q.goalId && x.step!=null).length : 0;
-  const sub = k==='daily' ? 'Täglich' : k==='weekly' ? `Woche ${weekCount(q)}/${q.target}` : q.step != null ? `Schritt ${q.step+1}/${total} · ${g ? g.name : ''}` : q.target > 1 ? `${q.count}/${q.target}${g?' · '+g.name:''}` : g ? g.name : 'Freie Quest';
+  const sub = k==='daily' ? 'Täglich' : k==='weekly' ? `Woche ${weekCount(q)}/${q.target}` : q.step != null ? `Schritt ${q.step+1}/${total} · ${g ? g.name : ''}` : q.target > 1 ? `${q.count}/${q.target}${g?' · '+g.name:''}` : g ? g.name : 'Freie Aufgabe';
   const open = UI.openRows.has(q.id);
   return `<div data-q="${q.id}" class="quest crow ${dn?'done':''} ${isMilestone(q)?'ms':''} ${q.id===FRESH?'fresh':''} ${open?'open':''}">
     <button class="check" data-act="${dn?'noop':'complete'}" data-id="${q.id}" aria-label="${dn?'Erledigt':'Als erledigt markieren'}: ${esc(q.title)}" ${dn?'disabled':''}>${ICON.check}</button>
@@ -1266,27 +1341,36 @@ function compactRow(q){
     <span class="xp">+${q.xp}</span></div>`;
 }
 /* Area 2 · today's tasks: dailies, the current step of each goal, open weeklies, free quests. */
+// Home filter: which kind of task a row belongs to. Goal steps and quests attached to a goal count as "goals".
+const HF = [['all','Alle'],['daily','Täglich'],['weekly','Wöchentlich'],['goals','Ziele']];
+const homeKind = q => kindOf(q) === 'daily' ? 'daily' : kindOf(q) === 'weekly' ? 'weekly' : q.goalId && S.goals.some(g=>g.id===q.goalId) ? 'goals' : 'free';
 function homeTasks(){
-  const open = [], done = [], keep = q => !doneNow(q) || LINGER.has(q.id); UI._more = '';
+  const open = [], done = [], keep = q => !doneNow(q) || LINGER.has(q.id);
   S.quests.filter(q=>kindOf(q)==='daily').forEach(q => (keep(q) ? open : done).push(q));
   S.goals.filter(g=>g.seq && !g.done).forEach(g => {
     const steps = S.quests.filter(q=>q.goalId===g.id && q.step!=null).sort((a,b)=>a.step-b.step);
     steps.filter(q=>q.done && LINGER.has(q.id)).forEach(q=>open.push(q));
     const cur = steps.find(q=>!q.done); if (cur) open.push(cur);
   });
-  S.quests.filter(q=>kindOf(q)==='weekly' && keep(q)).forEach(q=>open.push(q));
+  S.quests.filter(q=>kindOf(q)==='weekly').forEach(q => (keep(q) ? open : done).push(q));
   S.quests.filter(q=>kindOf(q)==='once' && q.step==null && keep(q)).forEach(q=>open.push(q));
-  const total = S.quests.length;
+  const f = HF.some(([v])=>v===UI.homeFilter) ? UI.homeFilter : 'all';
+  const pass = q => f === 'all' || homeKind(q) === f;
+  const fOpen = open.filter(pass), fDone = done.filter(pass);
+  const count = v => open.filter(q => v === 'all' || homeKind(q) === v).length;
+  const filters = S.quests.length ? `<div class="hfilter" role="group" aria-label="Aufgaben filtern">${HF.map(([v,l])=>`<button type="button" data-act="home-filter" data-v="${v}" aria-pressed="${f===v}">${l}<span class="tnum">${count(v)}</span></button>`).join('')}</div>` : '';
+  const emptyF = {daily:['Keine offenen täglichen Aufgaben.','daily','Tägliche Aufgabe'], weekly:['Keine offenen wöchentlichen Aufgaben.','weekly','Wöchentliche Aufgabe'], goals:['Keine offenen Schritte aus deinen Zielen.']};
   let body;
-  if (!total) body = `<div class="empty">Noch keine Aufgaben. Starte mit einer täglichen Gewohnheit oder einem Ziel.<div class="row" style="justify-content:center"><button class="btn small primary" data-act="new-quest" data-kind="daily">Daily Quest</button><button class="btn small ghost" data-act="fab">Ziel wählen</button></div></div>`;
+  if (!S.quests.length) body = `<div class="empty">Noch keine Aufgaben. Starte mit einer täglichen Gewohnheit oder einem Ziel.<div class="row" style="justify-content:center"><button class="btn small primary" data-act="new-quest" data-kind="daily">Tägliche Aufgabe</button><button class="btn small ghost" data-act="fab">Ziel wählen</button></div></div>`;
   else if (!open.length) body = `<div class="alldone">${ICON.check}<span>Alles erledigt für heute. Stark!</span></div>`;
-  else { const max = UI.homeAll ? open.length : 4, shown = open.slice(0, max), more = open.length - shown.length;
-    body = `<div class="qlist tight">${shown.map(compactRow).join('')}</div>`; UI._more = more > 0 ? `<button class="more" data-act="home-more">+ ${more} weitere</button>` : UI.homeAll && open.length > 4 ? `<button class="more" data-act="home-more">Weniger</button>` : ''; }
+  else if (!fOpen.length){ const e = emptyF[f];
+    body = `<div class="empty" style="padding:16px">${e[0]}${e[1] ? `<button class="btn small ghost" data-act="new-quest" data-kind="${e[1]}">${ICON.plus}${e[2]}</button>` : `<button class="btn small ghost" data-act="fab">${ICON.plus}Ziel wählen</button>`}</div>`; }
+  else body = `<div class="qlist tight">${fOpen.map(compactRow).join('')}</div>`;
   const doneToday = todayStat().n;
-  return `<section class="sec"><div class="sec-h"><div><h2>Heute</h2><span class="sec-m">${open.length} offen · ${doneToday} erledigt</span></div><span class="row" style="gap:6px;flex-wrap:nowrap"><button class="link" data-act="tab" data-v="quests">Alle ›</button><button class="addbtn" data-act="fab" aria-label="Quest oder Ziel hinzufügen">${ICON.plus}</button></span></div>
-    ${body}
-    ${(open.length && UI._more) || done.length ? `<div class="spread hfoot">${open.length ? UI._more || '<span></span>' : '<span></span>'}${done.length ? `<button class="more dim-more" data-act="home-done">${ICON.check}${done.length} erledigt ${UI.showDone?'ausblenden':'zeigen'}</button>` : ''}</div>` : ''}
-    ${done.length && UI.showDone ? `<div class="qlist tight">${done.map(compactRow).join('')}</div>` : ''}</section>`;
+  return `<section class="sec"><div class="sec-h"><div><h2>Heute</h2><span class="sec-m">${open.length} offen · ${doneToday} erledigt</span></div><span class="row" style="gap:6px;flex-wrap:nowrap"><button class="link" data-act="tab" data-v="quests">Alle ›</button><button class="addbtn" data-act="fab" aria-label="Aufgabe oder Ziel hinzufügen">${ICON.plus}</button></span></div>
+    ${filters}${body}
+    ${fDone.length ? `<div class="spread hfoot"><span></span><button class="more dim-more" data-act="home-done">${ICON.check}${fDone.length} erledigt ${UI.showDone?'ausblenden':'zeigen'}</button></div>` : ''}
+    ${fDone.length && UI.showDone ? `<div class="qlist tight">${fDone.map(compactRow).join('')}</div>` : ''}</section>`;
 }
 /* Area 3 · development: skills at a glance, streak, next challenge. */
 function devSection(){
@@ -1316,13 +1400,13 @@ function questRow(q){
       ${locked ? '' : `<div class="meta">${q.attrs.map(id=>{const m=meta(id);return `<span class="chip" style="--c:${m.color}">${aIcon(id)}${esc(m.name)}</span>`}).join('')}${pips}</div>`}${prog}</div>
     <div class="qside"><span class="xp">+${q.xp}<small>XP</small></span>${locked?'':`<button class="icon-btn" data-act="del-quest" data-id="${q.id}" aria-label="Quest löschen">${ICON.trash}</button>`}</div></div>`;
 }
-// Add-button shown at the top right of each section, matching Daily/Weekly.
+// Add-button shown at the top right of each section, matching the daily/weekly sections.
 const FOLD_ADD = {
-  'sec-daily': () => `<button class="btn small ghost" data-act="new-quest" data-kind="daily" aria-label="Daily Quest anlegen">${ICON.plus}Daily</button>`,
-  'sec-weekly': () => `<button class="btn small ghost" data-act="new-quest" data-kind="weekly" aria-label="Weekly Quest anlegen">${ICON.plus}Weekly</button>`,
+  'sec-daily': () => `<button class="btn small ghost" data-act="new-quest" data-kind="daily" aria-label="Tägliche Aufgabe anlegen">${ICON.plus}Täglich</button>`,
+  'sec-weekly': () => `<button class="btn small ghost" data-act="new-quest" data-kind="weekly" aria-label="Wöchentliche Aufgabe anlegen">${ICON.plus}Wöchentlich</button>`,
   'sec-tpl': () => `<button class="btn small ghost" data-act="fab" aria-label="Vorlage starten">${ICON.plus}Vorlage</button>`,
   'sec-own': () => `<button class="btn small ghost" data-act="new-goal" aria-label="Eigenes Ziel anlegen">${ICON.plus}Ziel</button>`,
-  'sec-free': () => `<button class="btn small ghost" data-act="new-quest" aria-label="Freie Quest erstellen">${ICON.plus}Quest</button>`,
+  'sec-free': () => `<button class="btn small ghost" data-act="new-quest" aria-label="Freie Aufgabe erstellen">${ICON.plus}Aufgabe</button>`,
 };
 function foldSec(id, title, metaTxt, inner){
   const closed = UI.folded.has(id);
@@ -1341,11 +1425,11 @@ function viewQuests(){
   if (!tasks) return h + goalsBody();
   const dailies = S.quests.filter(q=>kindOf(q)==='daily').sort((a,b)=>b.created-a.created);
   const dDone = dailies.filter(doneNow).length;
-  h += foldSec('sec-daily', 'Daily Quests', dailies.length ? `${dDone}/${dailies.length} heute` : '',
-    dailies.length ? listOrDone(dailies, 'Alle Daily Quests für heute erledigt. Morgen geht es weiter.') : `<div class="empty">Tägliche Gewohnheiten, die sich jeden Morgen zurücksetzen.<button class="btn small primary" data-act="new-quest" data-kind="daily">Daily Quest anlegen</button></div>`);
+  h += foldSec('sec-daily', 'Tägliche Aufgaben', dailies.length ? `${dDone}/${dailies.length} heute` : '',
+    dailies.length ? listOrDone(dailies, 'Alle täglichen Aufgaben für heute erledigt. Morgen geht es weiter.') : `<div class="empty">Tägliche Gewohnheiten, die sich jeden Morgen zurücksetzen.<button class="btn small primary" data-act="new-quest" data-kind="daily">Tägliche Aufgabe anlegen</button></div>`);
   const weeklies = S.quests.filter(q=>kindOf(q)==='weekly').sort((a,b)=>b.created-a.created), dl = daysLeftInWeek();
-  h += foldSec('sec-weekly', 'Weekly Quests', weeklies.length ? `${weeklies.filter(doneNow).length}/${weeklies.length} · ${dl} T.` : '',
-    weeklies.length ? listOrDone(weeklies, 'Alle Weekly Quests dieser Woche geschafft. Am Montag starten sie neu.') : `<div class="empty">Herausforderungen für die Woche, zum Beispiel 3× Sport. Start ist jeden Montag.<button class="btn small primary" data-act="new-quest" data-kind="weekly">Weekly Quest anlegen</button></div>`);
+  h += foldSec('sec-weekly', 'Wöchentliche Aufgaben', weeklies.length ? `${weeklies.filter(doneNow).length}/${weeklies.length} · ${dl} T.` : '',
+    weeklies.length ? listOrDone(weeklies, 'Alle wöchentlichen Aufgaben dieser Woche geschafft. Am Montag starten sie neu.') : `<div class="empty">Herausforderungen für die Woche, zum Beispiel 3× Sport. Start ist jeden Montag.<button class="btn small primary" data-act="new-quest" data-kind="weekly">Wöchentliche Aufgabe anlegen</button></div>`);
   const qs = S.quests.filter(q=>kindOf(q)==='once' && (!q.done || LINGER.has(q.id)));
   // Fixed order, newest first (no user-facing sort control).
   const sortedRows = list => `<div class="qlist">${list.sort((a,b)=>b.created-a.created).map(questRow).join('')}</div>`;
@@ -1375,7 +1459,7 @@ function viewQuests(){
   if (tplGoals.length || !S.goals.length) h += foldSec('sec-tpl', S.groups.length ? 'Vorlagen ohne Gruppe' : 'Vorlagen', nGoals(tplGoals.length),
     (tplGoals.length ? tplGoals.map(x=>goalBlock(x.g, x.list)).join('') : `<div class="empty">Noch kein Ziel aus den Vorlagen gestartet.<button class="btn small primary" data-act="gtab" data-v="tpl">Ziele entdecken</button></div>`));
   if (ownGoals.length) h += foldSec('sec-own', S.groups.length ? 'Eigene Ziele ohne Gruppe' : 'Eigene Ziele', nGoals(ownGoals.length), ownGoals.map(x=>goalBlock(x.g, x.list)).join(''));
-  h += foldSec('sec-free', 'Freie Quests', `${free.length} offen`, (free.length ? sortedRows(free) : `<div class="empty">Noch keine freien Quests. Sie gehören zu keinem Ziel, zum Beispiel eine einmalige Aufgabe, die du erledigen willst.<button class="btn small primary" data-act="new-quest">Freie Quest erstellen</button></div>`));
+  h += foldSec('sec-free', 'Freie Aufgaben', `${free.length} offen`, (free.length ? sortedRows(free) : `<div class="empty">Noch keine freien Aufgaben. Sie gehören zu keinem Ziel, zum Beispiel eine einmalige Aufgabe, die du erledigen willst.<button class="btn small primary" data-act="new-quest">Freie Aufgabe erstellen</button></div>`));
   const doneOnce = S.quests.filter(q=>kindOf(q)==='once' && q.done).length;
   h += `<div class="qfoot" style="display:flex;justify-content:flex-end"><button class="link" data-act="qfilter" data-v="done">Erledigt (${doneOnce}) ›</button></div>`;
   return h;
@@ -1415,13 +1499,13 @@ function viewCard(){
   </section>`;
   const skills = allAttrs().map(a => {
     const pct = attrPct(a);
-    return `<div class="skill" style="--c:${a.color}"><span class="sk-ic">${aIcon(a.id)}</span>
-      <div class="sk-nm"><span>${esc(a.name)}</span>${a.prestige>1?`<span class="prest">P${a.prestige}</span>`:''}</div><b class="num sk-lv">${a.level}</b>
-      <div class="bar" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100" aria-label="${esc(a.name)} Fortschritt"><i style="width:${pct}%"></i></div>
-      <div class="sk-txt"><span>${a.xp} / ${need(a.level)} XP</span><span>noch ${need(a.level)-a.xp} bis ${a.level>=100 ? `Prestige ${(a.prestige||1)+1}` : a.level+1}</span></div></div>`; }).join('');
+    return `<button type="button" class="skill" style="--c:${a.color}" data-act="skill-tips" data-a="${a.id}" aria-label="${esc(a.name)}, Level ${a.level}. Vorschläge zum Steigern anzeigen"><span class="sk-ic">${aIcon(a.id)}</span>
+      <span class="sk-nm"><span>${esc(a.name)}</span>${a.prestige>1?`<span class="prest">P${a.prestige}</span>`:''}<span class="sk-tip">Steigern ›</span></span><b class="num sk-lv">${a.level}</b>
+      <span class="bar" aria-hidden="true"><i style="width:${pct}%"></i></span>
+      <span class="sk-txt"><span>${a.xp} / ${need(a.level)} XP</span><span>noch ${need(a.level)-a.xp} bis ${a.level>=100 ? `Prestige ${(a.prestige||1)+1}` : a.level+1}</span></span></button>`; }).join('');
   const profOpen = !UI.folded.has('sec-radar');
   return `${card}
-    <section class="panel"><div class="sec-h" style="padding:0 0 2px"><div><h2>Skills</h2><span class="sec-m">Jede Quest trainiert die Skills, denen sie zugeordnet ist</span></div></div>${skills}
+    <section class="panel"><div class="sec-h" style="padding:0 0 2px"><div><h2>Skills</h2><span class="sec-m">Tippe auf einen Skill für passende Aufgaben und Ziele</span></div></div>${skills}
       ${S.special.length===0 ? `<p class="muted" style="margin-top:10px;font-size:.8rem">Spezial-Skills wie Ausdauer oder Charisma schaltest du frei, indem du anspruchsvolle Ziele abschließt.</p>`:''}</section>
     <section class="panel"><button class="fold-h" data-act="fold" data-id="sec-radar" aria-expanded="${profOpen}"><span class="chev" aria-hidden="true"></span><span class="fh-t"><h2>Skill-Profil</h2></span><span class="fh-m">Stärkster: ${top.name}</span></button>${profOpen ? radar() : ''}</section>`;
 }
@@ -1648,28 +1732,28 @@ function openSheet(html){ $('#sheet-root').innerHTML = `<div class="sheet-bg" da
 function closeSheet(){ $('#sheet-root').innerHTML = ''; QF = GF = null; }
 function questSheet(){
   const attrs = [...CORE.map(c=>c.id), ...S.special.map(s=>s.id)], k = QF.kind;
-  const titles = {once:'Neue Quest', daily:'Neue Daily Quest', weekly:'Neue Weekly Quest'};
+  const titles = {once:'Neue einmalige Aufgabe', daily:'Neue tägliche Aufgabe', weekly:'Neue wöchentliche Aufgabe'};
   openSheet(`<form class="stack" data-form="quest"><div class="spread"><h2>${titles[k]}</h2><button type="button" class="btn small ghost" data-act="close">Schließen</button></div>
     <div class="seg" role="group" aria-label="Art der Quest">${[['once','Einmalig'],['daily','Täglich'],['weekly','Wöchentlich']].map(([v,l])=>`<button type="button" data-act="qf-kind" data-v="${v}" aria-pressed="${k===v}">${l}</button>`).join('')}</div>
     <p class="muted" style="font-size:.82rem;margin-top:-4px">${k==='daily'?'Setzt sich jeden Tag zurück. Ideal für Gewohnheiten.':k==='weekly'?'Startet jeden Montag neu. Leg fest, wie oft pro Woche.':'Wird einmal (oder mehrfach) erledigt und landet dann im Verlauf.'}</p>
-    <details><summary>Aus Vorlagen wählen</summary><div class="stack" style="gap:6px;margin-top:10px">${CORE.map(c=>`<div class="sub" style="--c:var(--c-${c.id})">${aIcon(c.id)}${c.name}</div>${QT.filter(q=>q.a===c.id).map(q=>`<button type="button" class="tpl" data-act="qf-tpl" data-k="${QT.indexOf(q)}"><span>${esc(q.t)}${q.n>1?` · ${q.n}×`:''}</span><span class="xp">+${q.xp}</span></button>`).join('')}`).join('')}</div></details>
+    <details><summary>Aus Vorlagen wählen (${QT.filter(q=>qtKind(q)===k).length})</summary><div class="stack" style="gap:6px;margin-top:10px">${CORE.map(c=>`<div class="sub" style="--c:var(--c-${c.id})">${aIcon(c.id)}${c.name}</div>${QT.filter(q=>q.a===c.id && qtKind(q)===k).map(q=>`<button type="button" class="tpl" data-act="qf-tpl" data-k="${QT.indexOf(q)}"><span>${esc(q.t)}${tplTimes(q)}</span><span class="xp">+${q.xp}</span></button>`).join('')}`).join('')}</div></details>
     <label class="f">Titel<input class="inp" id="qf-title" maxlength="80" value="${esc(QF.title)}" placeholder="${k==='daily'?'z. B. 10 Minuten lesen':k==='weekly'?'z. B. Sport machen':'z. B. 30 Minuten Spanisch üben'}" required></label>
     <div style="display:flex;flex-direction:column;gap:7px;font-size:.8rem;font-weight:600;color:var(--muted)">Schwierigkeit
       <div class="seg" role="group" aria-label="Schwierigkeit">${DIFF.map(d=>`<button type="button" data-act="qf-xp" data-v="${d.xp}" aria-pressed="${QF.xp===d.xp}">${d.n} · ${d.xp}</button>`).join('')}</div></div>
     <div style="display:flex;flex-direction:column;gap:8px;font-size:.8rem;font-weight:600;color:var(--muted)">Skills (mindestens einer)
       <div class="row" style="gap:8px">${attrs.map(id=>{const m=meta(id);return `<button type="button" class="chip" style="--c:${m.color}" data-act="qf-attr" data-v="${id}" aria-pressed="${QF.attrs.includes(id)}">${aIcon(id)}${esc(m.name)}</button>`}).join('')}</div></div>
-    ${k==='once' ? `<div class="row"><label class="f" style="flex:2;min-width:180px">Ziel<select class="inp" id="qf-goal"><option value="">Kein Ziel (freie Quest)</option>${S.goals.filter(g=>!g.done && !g.seq).map(g=>`<option value="${g.id}" ${QF.goalId===g.id?'selected':''}>${esc(g.name)}</option>`).join('')}</select></label>
+    ${k==='once' ? `<div class="row"><label class="f" style="flex:2;min-width:180px">Ziel<select class="inp" id="qf-goal"><option value="">Kein Ziel (freie Aufgabe)</option>${S.goals.filter(g=>!g.done && !g.seq).map(g=>`<option value="${g.id}" ${QF.goalId===g.id?'selected':''}>${esc(g.name)}</option>`).join('')}</select></label>
       <label class="f" style="flex:1;min-width:110px">Wiederholungen<input class="inp tnum" id="qf-target" type="number" min="1" max="365" value="${QF.target}"></label></div>`
       : k==='weekly' ? `<label class="f">Wie oft pro Woche?<input class="inp tnum" id="qf-target" type="number" min="1" max="14" value="${QF.target}"></label>` : ''}
     <p class="err" id="qf-err" hidden></p>
-    <button class="btn primary block">${k==='once'?'Quest anlegen':k==='daily'?'Daily Quest anlegen':'Weekly Quest anlegen'}</button></form>`);
+    <button class="btn primary block">${k==='once'?'Aufgabe anlegen':k==='daily'?'Tägliche Aufgabe anlegen':'Wöchentliche Aufgabe anlegen'}</button></form>`);
 }
 function goalPicker(){
   openSheet(`<div class="stack"><div class="spread"><h2>Hinzufügen</h2><button type="button" class="btn small ghost" data-act="close">Schließen</button></div>
     <div class="quick">
-      <button type="button" data-act="new-quest" data-kind="daily">${ICON.daily}Daily Quest</button>
-      <button type="button" data-act="new-quest" data-kind="weekly">${ICON.weekly}Weekly Quest</button>
-      <button type="button" data-act="new-quest">${ICON.single}Einzelne Quest</button>
+      <button type="button" data-act="new-quest" data-kind="daily">${ICON.daily}Tägliche Aufgabe</button>
+      <button type="button" data-act="new-quest" data-kind="weekly">${ICON.weekly}Wöchentliche Aufgabe</button>
+      <button type="button" data-act="new-quest">${ICON.single}Einmalige Aufgabe</button>
       <button type="button" data-act="new-goal">${ICON.goal}Eigenes Ziel</button></div>
     <div class="sec-h" style="padding:8px 0 0"><div><h3>Ziele entdecken</h3><span class="sec-m">Die Schritte schaltest du nacheinander frei.</span></div></div>
     ${tplCats().map(c => `<div class="ggroup-h"><h2>${esc(c.name)}</h2><span class="muted tnum" style="font-size:.8rem">${c.list.length} ${c.list.length===1?'Ziel':'Ziele'}</span></div>` + c.list.map(t => { const has = S.goals.some(g=>g.tpl===t.id && !g.done);
@@ -1679,6 +1763,25 @@ function goalPicker(){
         <span class="spread"><span class="muted tnum" style="font-size:.8rem">${t.steps.length} Schritte · ${fmt(tplXp(t))} XP</span><span class="gp-cta">${has?'Bereits aktiv':'Starten →'}</span></span>
       </button>`; }).join('')).join('')}
     <button type="button" class="btn ghost block" data-act="gtab" data-v="tpl">Alle Ziele inkl. Community ansehen ›</button></div>`);
+}
+/* Skill tips: tapping a skill on the character page suggests quests and goals that train it. */
+const hasOpenQuest = title => S.quests.some(q => q.title === title && !(kindOf(q) === 'once' && q.done));
+function skillSheet(id){
+  const a = allAttrs().find(x=>x.id===id); if (!a) return;
+  const core = CORE.some(c=>c.id===id);
+  const row = t => { const has = hasOpenQuest(t.t);
+    return `<div class="tip"><span class="tip-t"><b>${esc(t.t)}</b><small class="muted">${diffName(t.xp)}${tplTimes(t)}</small></span><span class="xp">+${t.xp}</span>
+      <button type="button" class="tip-add" data-act="tip-add" data-k="${QT.indexOf(t)}" ${has?'disabled':''} aria-label="${has?'Bereits aktiv':'Hinzufügen'}: ${esc(t.t)}">${has?ICON.check:ICON.plus}</button></div>`; };
+  const kinds = [['daily','Täglich','Kleine Gewohnheiten, die sich jeden Tag zurücksetzen'],['weekly','Wöchentlich','Ein paar Mal pro Woche, Start jeden Montag'],['once','Einmalig','Einzelne Aufgaben mit spürbarem Fortschritt']];
+  const quests = core ? kinds.map(([k,l,d]) => { const list = QT.filter(t=>t.a===id && qtKind(t)===k);
+    return list.length ? `<div class="tip-h"><h3>${l}</h3><span class="muted">${d}</span></div>${list.map(row).join('')}` : ''; }).join('') : '';
+  // Goals that train this skill: main skill first, then where it is a side skill.
+  const goals = GT.filter(t=>t.attrs.includes(id) || t.unlock?.id===id).sort((x,y)=>x.attrs.indexOf(id)-y.attrs.indexOf(id));
+  const goalHtml = goals.map(t => { const has = S.goals.some(g=>g.tpl===t.id && !g.done);
+    return `<button type="button" class="tip-goal" data-act="pick-goal" data-id="${t.id}" ${has?'disabled':''}><span class="tip-t"><b>${esc(t.name)}</b><small class="muted">${t.steps.length} Schritte · ${fmt(tplXp(t))} XP${t.unlock?` · schaltet ${esc(t.unlock.name)} frei`:''}</small></span><span class="gp-cta">${has?'Aktiv':'Starten →'}</span></button>`; }).join('');
+  openSheet(`<div class="stack" style="--c:${a.color}"><div class="spread"><div class="tip-hd"><span class="sk-ic">${aIcon(id)}</span><span><h2>${esc(a.name)} steigern</h2><span class="muted tnum" style="font-size:.82rem">Level ${a.level} · noch ${need(a.level)-a.xp} XP bis ${a.level>=100 ? 'Prestige' : a.level+1}</span></span></div><button type="button" class="btn small ghost" data-act="close">Schließen</button></div>
+    ${core ? `<p class="muted" style="font-size:.85rem;margin-top:-4px">Tippe auf + und die Aufgabe landet direkt auf deiner Startseite.</p>${quests}` : `<p class="muted" style="font-size:.88rem">${esc(a.name)} wächst mit jeder Aufgabe, der du diesen Skill zuordnest. Wähle ihn beim Anlegen einer Aufgabe aus.</p><button type="button" class="btn small primary" data-act="new-quest">${ICON.plus}Aufgabe anlegen</button>`}
+    ${goalHtml ? `<div class="tip-h"><h3>Passende Ziele</h3><span class="muted">Größere Vorhaben mit Schritten, die nacheinander freischalten</span></div>${goalHtml}` : ''}</div>`);
 }
 function adoptGoal(id){
   const t = GT.find(x=>x.id===id); if (!t || S.goals.some(g=>g.tpl===t.id && !g.done)) return;
@@ -1732,7 +1835,12 @@ const ACT = {
     const on = !UI.openRows.has(id); on ? UI.openRows.add(id) : UI.openRows.delete(id); row.classList.toggle('open', on); b.setAttribute('aria-expanded', on); },
   gtab(b){ if ($('#sheet-root').innerHTML) closeSheet(); UI.gTab = b.dataset.v; UI.tab = 'quests'; UI.qView = 'goals'; render(); scrollTo(0,0); },
   qview(b){ UI.qView = b.dataset.v; render(); scrollTo(0,0); },
-  'home-more'(){ UI.homeAll = !UI.homeAll; render(); },
+  'home-filter'(b){ UI.homeFilter = b.dataset.v; ls.set('luy:hfilter', UI.homeFilter); render(); },
+  'skill-tips'(b){ skillSheet(b.dataset.a); },
+  'tip-add'(b){ const t = QT[b.dataset.k]; if (!t || hasOpenQuest(t.t)) return; const s = snap(), q = questFromTpl(t);
+    const top = $('.sheet')?.scrollTop || 0;
+    S.quests.push(q); FRESH = q.id; persist(); render(); skillSheet(t.a); const sh = $('.sheet'); if (sh) sh.scrollTop = top;
+    toast(`${qtKind(t)==='daily'?'Tägliche Aufgabe':qtKind(t)==='weekly'?'Wöchentliche Aufgabe':'Aufgabe'} „${t.t}“ hinzugefügt.`, s); },
   'home-done'(){ UI.showDone = !UI.showDone; render(); },
   undo(){ doUndo(); },
   'ov-next'(){ nextCeleb(); },
@@ -1752,7 +1860,7 @@ const ACT = {
   prestige(b){ const a = attrObj(b.dataset.id); if (!a || a.level < 100) return; const s = snap(); a.level = 1; a.xp = 0; a.prestige++; persist(); render(); toast(`${meta(b.dataset.id).name} ist jetzt Prestige ${a.prestige}.`, s); celebrate([{type:'prestige', id:b.dataset.id, p:a.prestige}]); },
   'new-quest'(b){ const kind = b.dataset.kind || 'once'; QF = {title:'', xp: kind==='once'?100:50, attrs:[], goalId:b.dataset.goal||'', target: kind==='weekly'?3:1, kind}; questSheet(); },
   'qf-kind'(b){ syncQF(); QF.kind = b.dataset.v; if (QF.kind === 'weekly' && QF.target < 2) QF.target = 3; if (QF.kind !== 'weekly' && QF.kind !== 'once') QF.target = 1; questSheet(); },
-  'qf-tpl'(b){ const t = QT[b.dataset.k]; syncQF(); QF.title = t.t; QF.xp = t.xp; QF.attrs = [t.a]; if (QF.kind === 'once') QF.target = t.n; questSheet(); $('#qf-title').focus(); },
+  'qf-tpl'(b){ const t = QT[b.dataset.k]; syncQF(); QF.title = t.t; QF.xp = t.xp; QF.attrs = [t.a]; if (QF.kind !== 'daily') QF.target = t.n; questSheet(); $('#qf-title').focus(); },
   'qf-xp'(b){ syncQF(); QF.xp = +b.dataset.v; b.parentNode.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed', x===b)); },
   'qf-attr'(b){ const id = b.dataset.v; QF.attrs = QF.attrs.includes(id) ? QF.attrs.filter(x=>x!==id) : [...QF.attrs, id]; b.setAttribute('aria-pressed', QF.attrs.includes(id)); },
   'new-goal'(b){ GF = {name:'', desc:'', group:b?.dataset.group || '', newGroup:'', quests:[{title:'', xp:100, attr:'geist', target:1}]}; goalSheet(); },
@@ -1969,7 +2077,7 @@ document.addEventListener('submit', e => {
     if (!QF.attrs.length){ err.textContent = 'Wähle mindestens einen Skill, den die Quest trainiert.'; err.hidden = false; return; }
     const s = snap(), k = QF.kind;
     S.quests.push(makeQuest({title:QF.title.trim(), xp:QF.xp, attrs:QF.attrs, goalId:k==='once' ? (QF.goalId||null) : null, target:k==='daily' ? 1 : QF.target, kind:k}));
-    closeSheet(); persist(); render(); toast(k==='daily' ? 'Daily Quest angelegt.' : k==='weekly' ? 'Weekly Quest angelegt.' : 'Quest angelegt.', s); return;
+    closeSheet(); persist(); render(); toast(k==='daily' ? 'Tägliche Aufgabe angelegt.' : k==='weekly' ? 'Wöchentliche Aufgabe angelegt.' : 'Aufgabe angelegt.', s); return;
   }
   if (f === 'group'){
     const name = $('#grp-name').value.trim(), err = $('#grp-err');
