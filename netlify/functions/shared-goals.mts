@@ -2,6 +2,7 @@ import { getUser, refreshSession, verifyRequestOrigin } from '@netlify/identity'
 import { and, desc, eq } from 'drizzle-orm';
 import { database } from '../../db/index.js';
 import { sharedGoals } from '../../db/schema.js';
+import { keepSignedIn } from '../lib/keep-signed-in.js';
 
 // Public goal library: every signed-in player can read it, add goals and withdraw their own.
 const SKILLS = ['geist', 'koerper', 'disziplin', 'kreativ', 'sozial'];
@@ -35,6 +36,7 @@ export default async (req: Request) => {
     try { verifyRequestOrigin(req); } catch { return reply({ error: 'Zugriff verweigert.' }, 403); }
   }
   try {
+    keepSignedIn();
     await refreshSession();
     const user = await getUser();
     if (!user) return reply({ error: 'Bitte erneut anmelden.' }, 401);
