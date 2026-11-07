@@ -1,7 +1,9 @@
 import { getUser, login, signup, logout, confirmEmail, refreshSession,
   requestPasswordRecovery, recoverPassword, verifyRequestOrigin, AuthError } from '@netlify/identity';
+import { keepSignedIn, renewSignIn } from '../lib/keep-signed-in.js';
 
 export default async (req: Request) => {
+  keepSignedIn();
   const reply = (body: unknown, status = 200) => Response.json(body, {
     status, headers: { 'Cache-Control': 'no-store' },
   });
@@ -9,7 +11,9 @@ export default async (req: Request) => {
   try {
     if (req.method === 'GET') {
       await refreshSession();
-      return reply({ user: safeUser(await getUser()) });
+      const user = await getUser();
+      if (user) renewSignIn();
+      return reply({ user: safeUser(user) });
     }
     if (req.method !== 'POST') return reply({ error: 'Methode nicht erlaubt.' }, 405);
     verifyRequestOrigin(req);

@@ -21,6 +21,7 @@ async function handler({ user = { id: 'player-a' }, rows = [], rejectOrigin = fa
       verifyRequestOrigin: () => { if (rejectOrigin) throw Error(); } },
     'drizzle-orm': { eq: (column, value) => [column, value], and: (...args) => args },
     '../../db/index.js': { database: () => { accessed = true; return db; } },
+    '../lib/keep-signed-in.js': { keepSignedIn: () => {} },
     '../../db/schema.js': { progress: { userId: 'user_id', version: 'version' } },
   };
   const source = stripTypeScriptTypes(await readFile('netlify/functions/progress.mts', 'utf8'));

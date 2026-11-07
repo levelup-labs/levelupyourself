@@ -2,6 +2,7 @@ import { getUser, refreshSession, verifyRequestOrigin } from '@netlify/identity'
 import { and, eq } from 'drizzle-orm';
 import { database } from '../../db/index.js';
 import { progress } from '../../db/schema.js';
+import { keepSignedIn } from '../lib/keep-signed-in.js';
 
 export default async (req: Request) => {
   const reply = (body: unknown, status = 200) => Response.json(body, {
@@ -12,6 +13,7 @@ export default async (req: Request) => {
     try { verifyRequestOrigin(req); } catch { return reply({ error: 'Zugriff verweigert.' }, 403); }
   }
   try {
+    keepSignedIn();
     await refreshSession();
     const user = await getUser();
     if (!user) return reply({ error: 'Bitte erneut anmelden.' }, 401);

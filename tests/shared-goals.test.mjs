@@ -21,6 +21,7 @@ async function handler({ user = { id: 'player-a' }, rows = [], rejectOrigin = fa
       verifyRequestOrigin: () => { if (rejectOrigin) throw Error(); } },
     'drizzle-orm': { eq: (column, value) => [column, value], and: (...args) => args, desc: (column) => column },
     '../../db/index.js': { database: () => { accessed = true; return db; } },
+    '../lib/keep-signed-in.js': { keepSignedIn: () => {} },
     '../../db/schema.js': { sharedGoals: { id: 'id', userId: 'user_id', createdAt: 'created_at' } },
   };
   const source = stripTypeScriptTypes(await readFile('netlify/functions/shared-goals.mts', 'utf8'));
